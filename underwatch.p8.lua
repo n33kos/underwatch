@@ -34,7 +34,6 @@ function cleanup(entity, table)
 	end
 end
 
-
 ---------------------------------------globals-------------------------------------
 -----------------------------------------------------------------------------------
 ai_entities = {}
@@ -74,6 +73,7 @@ game = {}
 game.score = {}
 game.score.team1 = 0
 game.score.team2 = 0
+
 ---------------------------------------characters---------------------------------
 -----------------------------------------------------------------------------------
 char_template = {}
@@ -88,7 +88,7 @@ char_template.velocity = {}
 	char_template.velocity.x = rnd(2)
 	char_template.velocity.y = rnd(2)
 char_template.mass = 1
-char_template.speed = 0.1
+char_template.speed = 0.05
 char_template.jumpheight = 5
 char_template.isjumping = true
 char_template.ismortal = true
@@ -104,11 +104,9 @@ char_template.spriteflip = {}
 	char_template.spriteflip.x = true
 	char_template.spriteflip.y = false
 char_template.shottimer = 0
-char_template.projectile = {}
-char_template.projectile.parent = ""
+char_template.primary = {}
 char_template.alternateshottimer = 0
 char_template.alternate = {}
-char_template.alternate.parent = ""
 char_template.spriteflip = {}
 	char_template.spriteflip.x = true
 	char_template.spriteflip.y = false
@@ -120,36 +118,40 @@ soldier24.animations = {}
 	soldier24.animations.idle = {0}
 	soldier24.animations.walk = {1,1,1,1,2,2,2,2}
 	soldier24.animations.jump = {1}
-soldier24.projectile.sprite = 3
-soldier24.projectile.mass = 0.2
-soldier24.projectile.maxage = 5
-soldier24.projectile.bounce = false
-soldier24.projectile.damage = 1
-soldier24.projectile.firedelay = 10 --draw frames between shots
-soldier24.projectile.velocity = {}
-	soldier24.projectile.velocity.x = 10
-	soldier24.projectile.velocity.y = 0
-soldier24.projectile.sca = {}
-	soldier24.projectile.sca.x = 2
-	soldier24.projectile.sca.y = 1
-soldier24.projectile.pixeloffset = {}
-	soldier24.projectile.pixeloffset.x = 0
-	soldier24.projectile.pixeloffset.y = 3
-soldier24.alternate.sprite = 4
-soldier24.alternate.mass = 0.5
-soldier24.alternate.maxage = 30
-soldier24.alternate.bounce = true
-soldier24.projectile.damage = 3
-soldier24.alternate.firedelay = 50 --draw frames between shots
-soldier24.alternate.velocity = {}
-	soldier24.alternate.velocity.x = 10
-	soldier24.alternate.velocity.y = -0.5
-soldier24.alternate.sca = {}
-	soldier24.alternate.sca.x = 4
-	soldier24.alternate.sca.y = 2
-soldier24.alternate.pixeloffset = {}
-	soldier24.alternate.pixeloffset.x = 0
-	soldier24.alternate.pixeloffset.y = 4
+soldier24.primary = {}
+	soldier24.primary[1] = {}
+		soldier24.primary[1].sprite = 3
+		soldier24.primary[1].mass = 0.2
+		soldier24.primary[1].maxage = 5
+		soldier24.primary[1].bounce = false
+		soldier24.primary[1].damage = 1
+		soldier24.primary[1].firedelay = 10 --draw frames between shots
+		soldier24.primary[1].velocity = {}
+			soldier24.primary[1].velocity.x = 10
+			soldier24.primary[1].velocity.y = 0
+		soldier24.primary[1].sca = {}
+			soldier24.primary[1].sca.x = 2
+			soldier24.primary[1].sca.y = 1
+		soldier24.primary[1].pixeloffset = {}
+			soldier24.primary[1].pixeloffset.x = 0
+			soldier24.primary[1].pixeloffset.y = 3
+soldier24.alternate = {}
+	soldier24.alternate[1] = {}
+		soldier24.alternate[1].sprite = 4
+		soldier24.alternate[1].mass = 0.5
+		soldier24.alternate[1].maxage = 30
+		soldier24.alternate[1].bounce = true
+		soldier24.alternate[1].damage = 3
+		soldier24.alternate[1].firedelay = 50 --draw frames between shots
+		soldier24.alternate[1].velocity = {}
+			soldier24.alternate[1].velocity.x = 10
+			soldier24.alternate[1].velocity.y = -0.5
+		soldier24.alternate[1].sca = {}
+			soldier24.alternate[1].sca.x = 4
+			soldier24.alternate[1].sca.y = 2
+		soldier24.alternate[1].pixeloffset = {}
+			soldier24.alternate[1].pixeloffset.x = 0
+			soldier24.alternate[1].pixeloffset.y = 4
 
 ---------------filthmouse--------------
 filthmouse = copy(char_template)
@@ -158,90 +160,95 @@ filthmouse.animations = {}
 	filthmouse.animations.idle = {32}
 	filthmouse.animations.walk = {33,33,33,34,34,34}
 	filthmouse.animations.jump = {33}
-filthmouse.projectile = {}
-	filthmouse.projectile.parent = ""
-	filthmouse.projectile.sprite = 35
-	filthmouse.projectile.mass = 0.25
-	filthmouse.projectile.maxage = 25
-	filthmouse.projectile.bounce = true
-	filthmouse.projectile.damage = 3
-	filthmouse.projectile.firedelay = 25 --draw frames between shots
-	filthmouse.projectile.velocity = {}
-		filthmouse.projectile.velocity.x = 4
-		filthmouse.projectile.velocity.y = -4
-	filthmouse.projectile.sca = {}
-		filthmouse.projectile.sca.x = 3
-		filthmouse.projectile.sca.y = 3
-	filthmouse.projectile.pixeloffset = {}
-		filthmouse.projectile.pixeloffset.x = 0
-		filthmouse.projectile.pixeloffset.y = 3
+filthmouse.primary = {}
+	filthmouse.primary[1] = {}
+		filthmouse.primary[1].parent = ""
+		filthmouse.primary[1].sprite = 35
+		filthmouse.primary[1].mass = 0.25
+		filthmouse.primary[1].maxage = 25
+		filthmouse.primary[1].bounce = true
+		filthmouse.primary[1].damage = 3
+		filthmouse.primary[1].firedelay = 25 --draw frames between shots
+		filthmouse.primary[1].velocity = {}
+			filthmouse.primary[1].velocity.x = 4
+			filthmouse.primary[1].velocity.y = -4
+		filthmouse.primary[1].sca = {}
+			filthmouse.primary[1].sca.x = 3
+			filthmouse.primary[1].sca.y = 3
+		filthmouse.primary[1].pixeloffset = {}
+			filthmouse.primary[1].pixeloffset.x = 0
+			filthmouse.primary[1].pixeloffset.y = 3
 filthmouse.alternate = {}
-	filthmouse.alternate.parent = ""
-	filthmouse.alternate.sprite = 36
-	filthmouse.alternate.mass = 2
-	filthmouse.alternate.maxage = 25
-	filthmouse.alternate.bounce = true
-	filthmouse.alternate.damage = 5
-	filthmouse.alternate.firedelay = 50 --draw frames between shots
-	filthmouse.alternate.velocity = {}
-		filthmouse.alternate.velocity.x = 0.5
-		filthmouse.alternate.velocity.y = 0
-	filthmouse.alternate.sca = {}
-		filthmouse.alternate.sca.x = 6
-		filthmouse.alternate.sca.y = 2
-	filthmouse.alternate.pixeloffset = {}
-		filthmouse.alternate.pixeloffset.x = 0
-		filthmouse.alternate.pixeloffset.y = 3
+	filthmouse.alternate[1] = {}
+		filthmouse.alternate[1].parent = ""
+		filthmouse.alternate[1].sprite = 36
+		filthmouse.alternate[1].mass = 2
+		filthmouse.alternate[1].maxage = 25
+		filthmouse.alternate[1].bounce = true
+		filthmouse.alternate[1].damage = 5
+		filthmouse.alternate[1].firedelay = 50 --draw frames between shots
+		filthmouse.alternate[1].velocity = {}
+			filthmouse.alternate[1].velocity.x = 0.5
+			filthmouse.alternate[1].velocity.y = 0
+		filthmouse.alternate[1].sca = {}
+			filthmouse.alternate[1].sca.x = 6
+			filthmouse.alternate[1].sca.y = 2
+		filthmouse.alternate[1].pixeloffset = {}
+			filthmouse.alternate[1].pixeloffset.x = 0
+			filthmouse.alternate[1].pixeloffset.y = 3
 
 ------------------rainhorse----------------------
 rainhorse = copy(char_template)
 rainhorse.character = "rainhorse"
 rainhorse.mass = 2
+rainhorse.speed *= 0.5
 rainhorse.hp = 15
 rainhorse.maxhp = 15
 rainhorse.animations = {}
 	rainhorse.animations.idle = {16}
 	rainhorse.animations.walk = {17,17,17,18,18,18}
 	rainhorse.animations.jump = {17}
-rainhorse.projectile = {}
-	rainhorse.projectile.parent = ""
-	rainhorse.projectile.sprite = 19
-	rainhorse.projectile.mass = 0.25
-	rainhorse.projectile.maxage = 2
-	rainhorse.projectile.bounce = false
-	rainhorse.projectile.damage = 1
-	rainhorse.projectile.firedelay = 15 --draw frames between shots
-	rainhorse.projectile.velocity = {}
-		rainhorse.projectile.velocity.x = 1
-		rainhorse.projectile.velocity.y = 0
-	rainhorse.projectile.sca = {}
-		rainhorse.projectile.sca.x = 6
-		rainhorse.projectile.sca.y = 6
-	rainhorse.projectile.pixeloffset = {}
-		rainhorse.projectile.pixeloffset.x = 0
-		rainhorse.projectile.pixeloffset.y = 0
+rainhorse.primary = {}
+	rainhorse.primary[1] = {}
+		rainhorse.primary[1].parent = ""
+		rainhorse.primary[1].sprite = 19
+		rainhorse.primary[1].mass = 0.25
+		rainhorse.primary[1].maxage = 2
+		rainhorse.primary[1].bounce = false
+		rainhorse.primary[1].damage = 1
+		rainhorse.primary[1].firedelay = 15 --draw frames between shots
+		rainhorse.primary[1].velocity = {}
+			rainhorse.primary[1].velocity.x = 0
+			rainhorse.primary[1].velocity.y = 0
+		rainhorse.primary[1].sca = {}
+			rainhorse.primary[1].sca.x = 6
+			rainhorse.primary[1].sca.y = 6
+		rainhorse.primary[1].pixeloffset = {}
+			rainhorse.primary[1].pixeloffset.x = 0
+			rainhorse.primary[1].pixeloffset.y = 0
 rainhorse.alternate = {}
-	rainhorse.alternate.parent = ""
-	rainhorse.alternate.sprite = 20
-	rainhorse.alternate.mass = 1
-	rainhorse.alternate.maxage = 2
-	rainhorse.alternate.bounce = false
-	rainhorse.alternate.damage = 0
-	rainhorse.alternate.firedelay = 0 --draw frames between shots
-	rainhorse.alternate.velocity = {}
-		rainhorse.alternate.velocity.x = 0
-		rainhorse.alternate.velocity.y = 0
-	rainhorse.alternate.sca = {}
-		rainhorse.alternate.sca.x = 1
-		rainhorse.alternate.sca.y = 8
-	rainhorse.alternate.pixeloffset = {}
-		rainhorse.alternate.pixeloffset.x = 1
-		rainhorse.alternate.pixeloffset.y = 0
+	rainhorse.alternate[1] = {}
+		rainhorse.alternate[1].parent = ""
+		rainhorse.alternate[1].sprite = 20
+		rainhorse.alternate[1].mass = 1
+		rainhorse.alternate[1].maxage = 2
+		rainhorse.alternate[1].bounce = false
+		rainhorse.alternate[1].damage = 0
+		rainhorse.alternate[1].firedelay = 0 --draw frames between shots
+		rainhorse.alternate[1].velocity = {}
+			rainhorse.alternate[1].velocity.x = 0
+			rainhorse.alternate[1].velocity.y = 0
+		rainhorse.alternate[1].sca = {}
+			rainhorse.alternate[1].sca.x = 1
+			rainhorse.alternate[1].sca.y = 8
+		rainhorse.alternate[1].pixeloffset = {}
+			rainhorse.alternate[1].pixeloffset.x = 0
+			rainhorse.alternate[1].pixeloffset.y = 0
 
 --------------------------spiderlady----------------------
 spiderlady = copy(char_template)
 spiderlady.character = "spiderlady"
-spiderlady.speed = 0.2
+spiderlady.speed *= 1.5
 spiderlady.jumpheight = 7.5
 spiderlady.hp = 3
 spiderlady.maxhp = 3
@@ -249,45 +256,47 @@ spiderlady.animations = {}
 	spiderlady.animations.idle = {5}
 	spiderlady.animations.walk = {6,6,6,7,7,7}
 	spiderlady.animations.jump = {6}
-spiderlady.projectile = {}
-	spiderlady.projectile.parent = ""
-	spiderlady.projectile.sprite = 8
-	spiderlady.projectile.mass = 0.1
-	spiderlady.projectile.maxage = 50
-	spiderlady.projectile.bounce = false
-	spiderlady.projectile.damage = 10
-	spiderlady.projectile.firedelay = 20 --draw frames between shots
-	spiderlady.projectile.velocity = {}
-		spiderlady.projectile.velocity.x = 10
-		spiderlady.projectile.velocity.y = 0
-	spiderlady.projectile.sca = {}
-		spiderlady.projectile.sca.x = 8
-		spiderlady.projectile.sca.y = 1
-	spiderlady.projectile.pixeloffset = {}
-		spiderlady.projectile.pixeloffset.x = 0
-		spiderlady.projectile.pixeloffset.y = 2
+spiderlady.primary = {}
+	spiderlady.primary[1] = {}
+		spiderlady.primary[1].parent = ""
+		spiderlady.primary[1].sprite = 8
+		spiderlady.primary[1].mass = 0.1
+		spiderlady.primary[1].maxage = 50
+		spiderlady.primary[1].bounce = false
+		spiderlady.primary[1].damage = 10
+		spiderlady.primary[1].firedelay = 60 --draw frames between shots
+		spiderlady.primary[1].velocity = {}
+			spiderlady.primary[1].velocity.x = 10
+			spiderlady.primary[1].velocity.y = 0
+		spiderlady.primary[1].sca = {}
+			spiderlady.primary[1].sca.x = 8
+			spiderlady.primary[1].sca.y = 1
+		spiderlady.primary[1].pixeloffset = {}
+			spiderlady.primary[1].pixeloffset.x = 0
+			spiderlady.primary[1].pixeloffset.y = 2
 spiderlady.alternate = {}
-	spiderlady.alternate.parent = ""
-	spiderlady.alternate.sprite = 9
-	spiderlady.alternate.mass = 0.1
-	spiderlady.alternate.maxage = 10
-	spiderlady.alternate.bounce = true
-	spiderlady.alternate.damage = 2
-	spiderlady.alternate.firedelay = 40 --draw frames between shots
-	spiderlady.alternate.velocity = {}
-		spiderlady.alternate.velocity.x = 5
-		spiderlady.alternate.velocity.y = -2.5
-	spiderlady.alternate.sca = {}
-		spiderlady.alternate.sca.x = 4
-		spiderlady.alternate.sca.y = 2
-	spiderlady.alternate.pixeloffset = {}
-		spiderlady.alternate.pixeloffset.x = 0
-		spiderlady.alternate.pixeloffset.y = 0
+	spiderlady.alternate[1] = {}
+		spiderlady.alternate[1].parent = ""
+		spiderlady.alternate[1].sprite = 9
+		spiderlady.alternate[1].mass = 0.1
+		spiderlady.alternate[1].maxage = 10
+		spiderlady.alternate[1].bounce = true
+		spiderlady.alternate[1].damage = 2
+		spiderlady.alternate[1].firedelay = 40 --draw frames between shots
+		spiderlady.alternate[1].velocity = {}
+			spiderlady.alternate[1].velocity.x = 5
+			spiderlady.alternate[1].velocity.y = -2.5
+		spiderlady.alternate[1].sca = {}
+			spiderlady.alternate[1].sca.x = 4
+			spiderlady.alternate[1].sca.y = 2
+		spiderlady.alternate[1].pixeloffset = {}
+			spiderlady.alternate[1].pixeloffset.x = 0
+			spiderlady.alternate[1].pixeloffset.y = 0
 
 --------------------------grace----------------------
 grace = copy(char_template)
 grace.character = "grace"
-grace.speed = 0.2
+grace.speed *= 1.5
 grace.jumpheight = 5
 grace.hp = 5
 grace.maxhp = 5
@@ -296,50 +305,121 @@ grace.animations = {}
 	grace.animations.idle = {21}
 	grace.animations.walk = {22,22,22,22,23,23,23,23}
 	grace.animations.jump = {22}
-grace.projectile = {}
-	grace.projectile.parent = ""
-	grace.projectile.sprite = 24
-	grace.projectile.mass = 0.1
-	grace.projectile.maxage = 1
-	grace.projectile.bounce = false
-	grace.projectile.damage = -1
-	grace.projectile.firedelay = 1 --draw frames between shots
-	grace.projectile.velocity = {}
-		grace.projectile.velocity.x = 4
-		grace.projectile.velocity.y = 0
-	grace.projectile.sca = {}
-		grace.projectile.sca.x = 8
-		grace.projectile.sca.y = 3
-	grace.projectile.pixeloffset = {}
-		grace.projectile.pixeloffset.x = 3
-		grace.projectile.pixeloffset.y = 1
+grace.primary = {}
+	grace.primary[1] = {}
+		grace.primary[1].parent = ""
+		grace.primary[1].sprite = 24
+		grace.primary[1].mass = 0.1
+		grace.primary[1].maxage = 2
+		grace.primary[1].bounce = false
+		grace.primary[1].damage = -1
+		grace.primary[1].firedelay = 1 --draw frames between shots
+		grace.primary[1].velocity = {}
+			grace.primary[1].velocity.x = 4
+			grace.primary[1].velocity.y = 0
+		grace.primary[1].sca = {}
+			grace.primary[1].sca.x = 8
+			grace.primary[1].sca.y = 3
+		grace.primary[1].pixeloffset = {}
+			grace.primary[1].pixeloffset.x = 2
+			grace.primary[1].pixeloffset.y = 1
 grace.alternate = {}
-	grace.alternate.parent = ""
-	grace.alternate.sprite = 25
-	grace.alternate.mass = 0.1
-	grace.alternate.maxage = 10
-	grace.alternate.bounce = false
-	grace.alternate.damage = 1
-	grace.alternate.firedelay = 15 --draw frames between shots
-	grace.alternate.velocity = {}
-		grace.alternate.velocity.x = 5
-		grace.alternate.velocity.y = 0
-	grace.alternate.sca = {}
-		grace.alternate.sca.x = 2
-		grace.alternate.sca.y = 1
-	grace.alternate.pixeloffset = {}
-		grace.alternate.pixeloffset.x = 0
-		grace.alternate.pixeloffset.y = 2
+	grace.alternate[1] = {}
+		grace.alternate[1].parent = ""
+		grace.alternate[1].sprite = 25
+		grace.alternate[1].mass = 0.1
+		grace.alternate[1].maxage = 10
+		grace.alternate[1].bounce = false
+		grace.alternate[1].damage = 1
+		grace.alternate[1].firedelay = 15 --draw frames between shots
+		grace.alternate[1].velocity = {}
+			grace.alternate[1].velocity.x = 5
+			grace.alternate[1].velocity.y = 0
+		grace.alternate[1].sca = {}
+			grace.alternate[1].sca.x = 2
+			grace.alternate[1].sca.y = 1
+		grace.alternate[1].pixeloffset = {}
+			grace.alternate[1].pixeloffset.x = 0
+			grace.alternate[1].pixeloffset.y = 2
+		
+--------------------------bowman----------------------
+bowman = copy(char_template)
+bowman.character = "bowman"
+bowman.jumpheight = 5
+bowman.hp = 5
+bowman.maxhp = 5
+bowman.mass = 0.1
+bowman.animations = {}
+	bowman.animations.idle = {37}
+	bowman.animations.walk = {38,38,38,38,39,39,39,39}
+	bowman.animations.jump = {38}
+bowman.primary = {}
+	bowman.primary[1] = {}
+		bowman.primary[1].parent = ""
+		bowman.primary[1].sprite = 40
+		bowman.primary[1].mass = 1
+		bowman.primary[1].maxage = 40
+		bowman.primary[1].bounce = false
+		bowman.primary[1].damage = 5
+		bowman.primary[1].firedelay = 40 --draw frames between shots
+		bowman.primary[1].velocity = {}
+			bowman.primary[1].velocity.x = 5
+			bowman.primary[1].velocity.y = -4
+		bowman.primary[1].sca = {}
+			bowman.primary[1].sca.x = 5
+			bowman.primary[1].sca.y = 1
+		bowman.primary[1].pixeloffset = {}
+			bowman.primary[1].pixeloffset.x = 0
+			bowman.primary[1].pixeloffset.y = 3
+bowman.alternate = {}
+	bowman.alternate[1] = {}
+		bowman.alternate[1].parent = ""
+		bowman.alternate[1].sprite = 40
+		bowman.alternate[1].mass = 1
+		bowman.alternate[1].maxage = 40
+		bowman.alternate[1].bounce = false
+		bowman.alternate[1].damage = 5
+		bowman.alternate[1].firedelay = 60 --draw frames between shots
+		bowman.alternate[1].velocity = {}
+			bowman.alternate[1].velocity.x = 5
+			bowman.alternate[1].velocity.y = -4
+		bowman.alternate[1].sca = {}
+			bowman.alternate[1].sca.x = 5
+			bowman.alternate[1].sca.y = 1
+		bowman.alternate[1].pixeloffset = {}
+			bowman.alternate[1].pixeloffset.x = 0
+			bowman.alternate[1].pixeloffset.y = 3
+	bowman.alternate[2] = {}
+		bowman.alternate[2].parent = ""
+		bowman.alternate[2].sprite = 40
+		bowman.alternate[2].mass = 1
+		bowman.alternate[2].maxage = 40
+		bowman.alternate[2].bounce = false
+		bowman.alternate[2].damage = 5
+		bowman.alternate[2].firedelay = 60 --draw frames between shots
+		bowman.alternate[2].velocity = {}
+			bowman.alternate[2].velocity.x = 5
+			bowman.alternate[2].velocity.y = -3
+		bowman.alternate[2].sca = {}
+			bowman.alternate[2].sca.x = 5
+			bowman.alternate[2].sca.y = 1
+		bowman.alternate[2].pixeloffset = {}
+			bowman.alternate[2].pixeloffset.x = 0
+			bowman.alternate[2].pixeloffset.y = 3
 
-all_characters = {soldier24,filthmouse,rainhorse,spiderlady, grace}
+all_characters = {soldier24, filthmouse, rainhorse, spiderlady, grace, bowman}
 
 ------------------------------------init functions-----------------------------------
 -----------------------------------------------------------------------------------
 function make_player()
-	temp_entity = copy(grace)
+	temp_entity = copy(bowman)
 	temp_entity.team = "team1"
-	temp_entity.projectile.parent = "team1"
-	temp_entity.alternate.parent = "team1"
+	for key,val in pairs(temp_entity.primary) do
+		val.parent = "team1"
+	end
+	for key,val in pairs(temp_entity.alternate) do
+		val.parent = "team1"
+	end
 	temp_entity.pos.x = rnd(256)
 	temp_entity.pos.y = rnd(128) - phys.ground_height
 	add(player_entities, temp_entity)
@@ -351,8 +431,12 @@ function make_ai()
 	for i=1,#all_characters do
 		temp_entity = copy(all_characters[i])
 		temp_entity.team = "team1"
-		temp_entity.projectile.parent = "team1"
-		temp_entity.alternate.parent = "team1"
+		for key,val in pairs(temp_entity.primary) do
+			val.parent = "team1"
+		end
+		for key,val in pairs(temp_entity.alternate) do
+			val.parent = "team1"
+		end
 		temp_entity.pos.x = rnd(256)
 		temp_entity.pos.y = rnd(128) - phys.ground_height
 		add(ai_entities, temp_entity)
@@ -361,8 +445,12 @@ function make_ai()
 	for i=1,#all_characters do
 		temp_entity = copy(all_characters[i])
 		temp_entity.team = "team2"
-		temp_entity.projectile.parent = "team2"
-		temp_entity.alternate.parent = "team2"
+		for key,val in pairs(temp_entity.primary) do
+			val.parent = "team2"
+		end
+		for key,val in pairs(temp_entity.alternate) do
+			val.parent = "team2"
+		end
 		temp_entity.pos.x = rnd(256)+256
 		temp_entity.pos.y = rnd(128) - phys.ground_height
 		add(ai_entities, temp_entity)
@@ -370,20 +458,20 @@ function make_ai()
 end
 
 function make_projectile(entity, projectile)
-	proj = copy(projectile)
-	proj.pos = {}
-	proj.age = 0
-	proj.spriteflip = {}
+	temp_proj = copy(projectile)
+	temp_proj.pos = {}
+	temp_proj.age = 0
+	temp_proj.spriteflip = {}
 	if entity.spriteflip.x == true then
-		proj.spriteflip.x = true
-		proj.velocity.x = projectile.velocity.x*-1
-		proj.pos.x = entity.pos.x-projectile.pixeloffset.x
+		temp_proj.spriteflip.x = true
+		temp_proj.velocity.x = temp_proj.velocity.x*-1
+		temp_proj.pos.x = entity.pos.x-temp_proj.sca.x-temp_proj.pixeloffset.x
 	else
-		proj.pos.x = entity.pos.x+entity.sca.x+projectile.pixeloffset.x
+		temp_proj.pos.x = entity.pos.x+entity.sca.x+temp_proj.pixeloffset.x
 	end
-	proj.pos.y = entity.pos.y+entity.projectile.pixeloffset.y
+	temp_proj.pos.y = entity.pos.y+temp_proj.pixeloffset.y
 
-	add(projectiles, proj)
+	add(projectiles, temp_proj)
 end
 
 
@@ -432,16 +520,20 @@ function ai_attack_behavior(entity)
 		entity.shottimer -= 1
 
 		if entity.shottimer <= 0 then
-			entity.shottimer = entity.projectile.firedelay
-			make_projectile(entity, entity.projectile)
+			for key,val in pairs(entity.primary) do
+				entity.shottimer = val.firedelay
+				make_projectile(entity, val)
+			end
 		end
 	elseif entity.attack_behavior == "alternate" then
 		--counter
 		entity.alternateshottimer -= 1
 
 		if entity.alternateshottimer <= 0 then
-			entity.alternateshottimer = entity.alternate.firedelay
-			make_projectile(entity, entity.alternate)
+			for key,val in pairs(entity.alternate) do
+				entity.alternateshottimer = val.firedelay
+				make_projectile(entity, val)
+			end
 			if entity.character == "rainhorse" then
 				entity.shielded = true
 			end
@@ -453,12 +545,16 @@ function ai_attack_behavior(entity)
 		entity.alternateshottimer -= 1
 		if rnd(10) < 5 then
 			if entity.shottimer <= 0 and phys.time%2 == 0 then
-				entity.shottimer = entity.projectile.firedelay
-				make_projectile(entity, entity.projectile)
+				for key,val in pairs(entity.primary) do
+					entity.shottimer = val.firedelay
+					make_projectile(entity, val)
+				end
 			end
 			if entity.alternateshottimer <= 0 and phys.time%2 == 1 then
-				entity.alternateshottimer = entity.alternate.firedelay
-				make_projectile(entity, entity.alternate)
+				for key,val in pairs(entity.alternate) do
+					entity.alternateshottimer = val.firedelay
+					make_projectile(entity, val)
+				end
 				if entity.character == "rainhorse" then
 					entity.shielded = true
 				end
@@ -492,8 +588,13 @@ function assess_hp(entity, table)
 		end
 		tmp.pos.y = 0
 		tmp.team = team
-		tmp.projectile.parent = team
-		tmp.alternate.parent = team
+		for key,projectile in pairs(tmp.primary) do
+			projectile.parent = team
+		end
+		for key,projectile in pairs(tmp.alternate) do
+			projectile.parent = team
+		end
+		
 		add(ai_entities, tmp)
 		------------------------------------
 		if team == "team1" then
@@ -634,7 +735,7 @@ function set_animation_frame(entity)
 end
 
 function draw_health_bar(entity)
-	if entity.projectile.parent == "team1" then
+	if entity.team == "team1" then
 		colors = {1,12}
 	else
 		colors = {2,8}
@@ -727,7 +828,7 @@ function _draw()
 	--player entities
 	for key,entity in pairs(player_entities) do
 		draw_entity(entity)
-		--draw_health_bar(entity)
+		draw_health_bar(entity)
 
 		--resets
 		if entity.character == "rainhorse" then
@@ -780,23 +881,15 @@ function _draw()
 		for key,entity in pairs(player_entities) do
 			--counter
 			entity.shottimer -= 1
-			
-			--adjust bullet start location
-			adjustedpos = {}
-			if entity.spriteflip.x then
-				adjustedpos.x = entity.pos.x-entity.sca.x-entity.projectile.pixeloffset.x+1
-			else
-				adjustedpos.x = entity.pos.x+entity.sca.x+entity.projectile.pixeloffset.x
-			end
-			adjustedpos.y = entity.pos.y+entity.projectile.pixeloffset.y
-
-			--main fire
+	
+			--primary fire
 			if entity.shottimer <= 0 then
-				entity.shottimer = entity.projectile.firedelay
-				make_projectile(entity, entity.projectile)
+				for key,val in pairs(entity.primary) do
+					entity.shottimer = val.firedelay
+					make_projectile(entity, val)
+				end
 			end
 
-			
 		end
 	end
 	if btn(5) then
@@ -804,19 +897,13 @@ function _draw()
 			--counter
 			entity.alternateshottimer -= 1
 
-			--adjust bullet start location
-			adjustedpos = {}
-			if entity.spriteflip.x then
-				adjustedpos.x = entity.pos.x-entity.alternate.pixeloffset.x+1
-			else
-				adjustedpos.x = entity.pos.x+entity.sca.x+entity.alternate.pixeloffset.x
-			end
-			adjustedpos.y = entity.pos.y+entity.projectile.pixeloffset.y
-
 			--alternate fire
 			if entity.alternateshottimer <= 0 then
-				entity.alternateshottimer = entity.alternate.firedelay
-				make_projectile(entity, entity.alternate)
+				for key,val in pairs(entity.alternate) do
+					entity.alternateshottimer = val.firedelay
+					make_projectile(entity, val)
+				end
+
 				if entity.character == "rainhorse" then
 					entity.shielded = true
 				end
@@ -827,8 +914,8 @@ end
 
 
 __gfx__
-066f0000066f0000066f000095500000ac660000225500002255000022550000777777660cc00000000000000000000000000000000000000000000000000000
-06f8000006f8000006f8000000000000915500002258000022580000225800000000000050050000000000000000000000000000000000000000000000000000
+066f0000066f0000066f000095500000c1660000225500002255000022550000777777660cc00000000000000000000000000000000000000000000000000000
+06f8000006f8000006f8000000000000c15500002258000022580000225800000000000050050000000000000000000000000000000000000000000000000000
 01150000011500000115000000000000000000002e6666662e6666662e6666660000000000000000000000000000000000000000000000000000000000000000
 0cc666660cc666660cc6666600000000000000002e5650002e5650002e5650000000000000000000000000000000000000000000000000000000000000000000
 0c1156000c1156000c1156000000000000000000055e0000055e0000055e00000000000000000000000000000000000000000000000000000000000000000000
@@ -843,14 +930,14 @@ __gfx__
 005f560f005f560f005f560f50000000c00000000006560000065600000656000000000000000000000000000000000000000000000000000000000000000000
 00056500000565000005650000000000c00000000005060000050600000506000000000000000000000000000000000000000000000000000000000000000000
 00050500005005000005500000000000c00000000006060000606000006060000000000000000000000000000000000000000000000000000000000000000000
-00a9a90000a9a900009a9a0009000000088000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000aff00000aff000009ff0098900000555500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-060ff700060ff700060ff70009000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-005a555a005a555a005a555a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-005ff500005ff500005ff50000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-06099900060999000609990000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00090700000907000009070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00070700007007000007700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00a9a90000a9a90000a9a900090000000880000005a5500005a5500005a550005666700056667000000000000000000000000000000000000000000000000000
+000aff00000aff00000aff009890000055550000005ff060005ff060005ff0600000000000000000000000000000000000000000000000000000000000000000
+060ff700060ff700060ff7000900000000000000075fe006075fe006075fe0060000000056667000000000000000000000000000000000000000000000000000
+005a555a005a555a005a555a000000000000000006c1fff606c1fff606c1fff60000000000000000000000000000000000000000000000000000000000000000
+005ff500005ff500005ff500000000000000000006cc500606cc500606cc50060000000056667000000000000000000000000000000000000000000000000000
+06099900060999000609990000000000000000000611100606111006061110060000000000000000000000000000000000000000000000000000000000000000
+00090700000907000009070000000000000000000010106000101060001010600000000000000000000000000000000000000000000000000000000000000000
+00070700007007000007700000000000000000000050500005005000005500000000000000000000000000000000000000000000000000000000000000000000
 3b3b3b334444444400000000dddddddd888888880000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 b333b33b4444444400000000ddddddddeeeeeeee0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 353353354444444400000000dddddddde22ee2e20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
