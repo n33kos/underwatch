@@ -209,7 +209,7 @@ rainhorse.projectile = {}
 	rainhorse.projectile.mass = 0.25
 	rainhorse.projectile.maxage = 2
 	rainhorse.projectile.bounce = false
-	rainhorse.projectile.damage = 2
+	rainhorse.projectile.damage = 1
 	rainhorse.projectile.firedelay = 15 --draw frames between shots
 	rainhorse.projectile.velocity = {}
 		rainhorse.projectile.velocity.x = 1
@@ -410,7 +410,7 @@ function ai_movement_behavior(entity)
 			else
 				entity.velocity.x -= rnd(entity.speed)+rnd(entity.speed)
 			end
-			if rnd(10) < 1 and entity.isjumping != true then
+			if rnd(10) < 2 and entity.isjumping != true then
 				entity.velocity.y -= rnd(entity.jumpheight)
 			end
 		end
@@ -485,8 +485,12 @@ function assess_hp(entity, table)
 		--temporary fun forever fight!----------------------
 		team = entity.team
 		tmp = copy(all_characters[flr(rnd(#all_characters))+1])
-		tmp.pos.x = rnd(256)
-		tmp.pos.y = rnd(128) - phys.ground_height
+		if team == "team2" then
+			tmp.pos.x = 400
+		else
+			tmp.pos.x = 12
+		end
+		tmp.pos.y = 0
 		tmp.team = team
 		tmp.projectile.parent = team
 		tmp.alternate.parent = team
@@ -723,7 +727,7 @@ function _draw()
 	--player entities
 	for key,entity in pairs(player_entities) do
 		draw_entity(entity)
-		draw_health_bar(entity)
+		--draw_health_bar(entity)
 
 		--resets
 		if entity.character == "rainhorse" then
