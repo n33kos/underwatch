@@ -2,14 +2,47 @@ pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
 
---------------globals-----------------
----------------------------------------
+-----------------------------------helper functions--------------------------------
+-----------------------------------------------------------------------------------
+function copy(o)
+	local c
+	if type(o) == 'table' then
+		c = {}
+		for k, v in pairs(o) do
+		c[k] = copy(v)
+		end
+	else
+		c = o
+	end
+	return c
+end
+
+function cleanup(entity, table)
+	cleanuplimit = 2047
+	for k, v in pairs(entity) do
+		if type(v) == 'table' then
+			for k2, v2 in pairs(v) do
+				if type(v2) == "number" and (v2 > cleanuplimit or v2 < -cleanuplimit) then
+					del(table, entity)
+				end
+			end
+		else
+			if type(v) == "number" and (v > cleanuplimit or v < -cleanuplimit) then
+				del(table, entity)
+			end
+		end
+	end
+end
+
+
+---------------------------------------globals-------------------------------------
+-----------------------------------------------------------------------------------
 ai_entities = {}
 player_entities = {}
 projectiles = {}
 
 phys = {}
-phys.drag = {1.1,1.1}
+phys.drag = {1.05,1.05}
 phys.bounce = {0.1,0.1}
 phys.gravity = {0,-0.5}
 phys.ground_height = 8
@@ -37,105 +70,94 @@ currmap.dim = {}
 currmap.dim.x = 64
 currmap.dim.y = 16
 
-
---------------characters--------------
--------------------------------------
+game = {}
+game.score = {}
+game.score.team1 = 0
+game.score.team2 = 0
+---------------------------------------characters---------------------------------
+-----------------------------------------------------------------------------------
+char_template = {}
+char_template = {}
+char_template.pos = {}
+	char_template.pos.x = 0
+	char_template.pos.y = 0
+char_template.sca = {}
+	char_template.sca.x = 8
+	char_template.sca.y = 8
+char_template.velocity = {}
+	char_template.velocity.x = rnd(2)
+	char_template.velocity.y = rnd(2)
+char_template.mass = 1
+char_template.speed = 0.1
+char_template.jumpheight = 5
+char_template.isjumping = true
+char_template.ismortal = true
+char_template.shielded = false
+char_template.hp = 5
+char_template.maxhp = 5
+char_template.sprite = 0
+char_template.team = "none"
+char_template.current_animation = "idle"
+char_template.movement_behavior = "follow"
+char_template.attack_behavior = "cycle"
+char_template.spriteflip = {}
+	char_template.spriteflip.x = true
+	char_template.spriteflip.y = false
+char_template.shottimer = 0
+char_template.projectile = {}
+char_template.projectile.parent = ""
+char_template.alternateshottimer = 0
+char_template.alternate = {}
+char_template.alternate.parent = ""
+char_template.spriteflip = {}
+	char_template.spriteflip.x = true
+	char_template.spriteflip.y = false
 
 ----------------soldier24-----------------
-soldier24 = {}
-soldier24.pos = {}
-	soldier24.pos.x = 0
-	soldier24.pos.y = 0
-soldier24.sca = {}
-	soldier24.sca.x = 8
-	soldier24.sca.y = 8
-soldier24.velocity = {}
-	soldier24.velocity.x = rnd(2)
-	soldier24.velocity.y = rnd(2)
-soldier24.mass = 1
-soldier24.speed = 0.1
-soldier24.jumpheight = 5
-soldier24.isjumping = true
-soldier24.ismortal = true
-soldier24.hp = 5
-soldier24.maxhp = 5
-soldier24.sprite = 0
-soldier24.current_animation = "idle"
+soldier24 = copy(char_template)
+soldier24.character = "soldier24"
 soldier24.animations = {}
 	soldier24.animations.idle = {0}
 	soldier24.animations.walk = {1,1,1,1,2,2,2,2}
 	soldier24.animations.jump = {1}
-soldier24.movement_behavior = "follow"
-soldier24.attack_behavior = "primary"
-soldier24.spriteflip = {}
-	soldier24.spriteflip.x = true
-	soldier24.spriteflip.y = false
-soldier24.shottimer = 0
-soldier24.projectile = {}
-	soldier24.projectile.parent = ""
-	soldier24.projectile.sprite = 3
-	soldier24.projectile.mass = 0.2
-	soldier24.projectile.maxage = 5
-	soldier24.projectile.bounce = false
-	soldier24.projectile.damage = 1
-	soldier24.projectile.firedelay = 10 --draw frames between shots
-	soldier24.projectile.velocity = {}
-		soldier24.projectile.velocity.x = 10
-		soldier24.projectile.velocity.y = 0
-	soldier24.projectile.sca = {}
-		soldier24.projectile.sca.x = 2
-		soldier24.projectile.sca.y = 1
-	soldier24.projectile.pixeloffset = {}
-		soldier24.projectile.pixeloffset.x = 0
-		soldier24.projectile.pixeloffset.y = 3
-soldier24.alternateshottimer = 0
-soldier24.alternate = {}
-	soldier24.alternate.parent = ""
-	soldier24.alternate.sprite = 4
-	soldier24.alternate.mass = 0.5
-	soldier24.alternate.maxage = 30
-	soldier24.alternate.bounce = true
-	soldier24.projectile.damage = 3
-	soldier24.alternate.firedelay = 50 --draw frames between shots
-	soldier24.alternate.velocity = {}
-		soldier24.alternate.velocity.x = 10
-		soldier24.alternate.velocity.y = -0.5
-	soldier24.alternate.sca = {}
-		soldier24.alternate.sca.x = 4
-		soldier24.alternate.sca.y = 2
-	soldier24.alternate.pixeloffset = {}
-		soldier24.alternate.pixeloffset.x = 0
-		soldier24.alternate.pixeloffset.y = 4
---------------------------filthmouse----------------------
-filthmouse = {}
-filthmouse.pos = {}
-filthmouse.pos.x = 0
-filthmouse.pos.y = 0
-filthmouse.sca = {}
-filthmouse.sca.x = 8
-filthmouse.sca.y = 8
-filthmouse.velocity = {}
-filthmouse.velocity.x = rnd(2)
-filthmouse.velocity.y = rnd(2)
-filthmouse.mass = 1
-filthmouse.speed = 0.1
-filthmouse.jumpheight = 5
-filthmouse.isjumping = true
-filthmouse.ismortal = true
-filthmouse.hp = 5
-filthmouse.maxhp = 5
-filthmouse.sprite = 32
-filthmouse.current_animation = "idle"
+soldier24.projectile.sprite = 3
+soldier24.projectile.mass = 0.2
+soldier24.projectile.maxage = 5
+soldier24.projectile.bounce = false
+soldier24.projectile.damage = 1
+soldier24.projectile.firedelay = 10 --draw frames between shots
+soldier24.projectile.velocity = {}
+	soldier24.projectile.velocity.x = 10
+	soldier24.projectile.velocity.y = 0
+soldier24.projectile.sca = {}
+	soldier24.projectile.sca.x = 2
+	soldier24.projectile.sca.y = 1
+soldier24.projectile.pixeloffset = {}
+	soldier24.projectile.pixeloffset.x = 0
+	soldier24.projectile.pixeloffset.y = 3
+soldier24.alternate.sprite = 4
+soldier24.alternate.mass = 0.5
+soldier24.alternate.maxage = 30
+soldier24.alternate.bounce = true
+soldier24.projectile.damage = 3
+soldier24.alternate.firedelay = 50 --draw frames between shots
+soldier24.alternate.velocity = {}
+	soldier24.alternate.velocity.x = 10
+	soldier24.alternate.velocity.y = -0.5
+soldier24.alternate.sca = {}
+	soldier24.alternate.sca.x = 4
+	soldier24.alternate.sca.y = 2
+soldier24.alternate.pixeloffset = {}
+	soldier24.alternate.pixeloffset.x = 0
+	soldier24.alternate.pixeloffset.y = 4
+
+---------------filthmouse--------------
+filthmouse = copy(char_template)
+filthmouse.character = "filthmouse"
 filthmouse.animations = {}
 	filthmouse.animations.idle = {32}
 	filthmouse.animations.walk = {33,33,33,34,34,34}
 	filthmouse.animations.jump = {33}
-filthmouse.movement_behavior = "follow"
-filthmouse.attack_behavior = "primary"
-filthmouse.spriteflip = {}
-filthmouse.spriteflip.x = true
-filthmouse.spriteflip.y = false
-filthmouse.shottimer = 0
 filthmouse.projectile = {}
 	filthmouse.projectile.parent = ""
 	filthmouse.projectile.sprite = 35
@@ -153,119 +175,80 @@ filthmouse.projectile = {}
 	filthmouse.projectile.pixeloffset = {}
 		filthmouse.projectile.pixeloffset.x = 0
 		filthmouse.projectile.pixeloffset.y = 3
-filthmouse.alternateshottimer = 0
 filthmouse.alternate = {}
 	filthmouse.alternate.parent = ""
-	filthmouse.alternate.sprite = 35
-	filthmouse.alternate.mass = 0.25
+	filthmouse.alternate.sprite = 36
+	filthmouse.alternate.mass = 2
 	filthmouse.alternate.maxage = 25
 	filthmouse.alternate.bounce = true
-	filthmouse.alternate.damage = 3
-	filthmouse.alternate.firedelay = 25 --draw frames between shots
+	filthmouse.alternate.damage = 5
+	filthmouse.alternate.firedelay = 50 --draw frames between shots
 	filthmouse.alternate.velocity = {}
-		filthmouse.alternate.velocity.x = 4
-		filthmouse.alternate.velocity.y = -4
+		filthmouse.alternate.velocity.x = 0.5
+		filthmouse.alternate.velocity.y = 0
 	filthmouse.alternate.sca = {}
-		filthmouse.alternate.sca.x = 3
-		filthmouse.alternate.sca.y = 3
+		filthmouse.alternate.sca.x = 6
+		filthmouse.alternate.sca.y = 2
 	filthmouse.alternate.pixeloffset = {}
 		filthmouse.alternate.pixeloffset.x = 0
 		filthmouse.alternate.pixeloffset.y = 3
---------------------------rainheart----------------------
-rainheart = {}
-rainheart.pos = {}
-rainheart.pos.x = 0
-rainheart.pos.y = 0
-rainheart.sca = {}
-rainheart.sca.x = 8
-rainheart.sca.y = 8
-rainheart.velocity = {}
-rainheart.velocity.x = rnd(2)
-rainheart.velocity.y = rnd(2)
-rainheart.mass = 2
-rainheart.speed = 0.1
-rainheart.jumpheight = 5
-rainheart.isjumping = true
-rainheart.ismortal = true
-rainheart.hp = 20
-rainheart.maxhp = 5
-rainheart.sprite = 32
-rainheart.current_animation = "idle"
-rainheart.animations = {}
-	rainheart.animations.idle = {16}
-	rainheart.animations.walk = {17,17,17,18,18,18}
-	rainheart.animations.jump = {17}
-rainheart.movement_behavior = "follow"
-rainheart.attack_behavior = "alternate"
-rainheart.spriteflip = {}
-rainheart.spriteflip.x = true
-rainheart.spriteflip.y = false
-rainheart.shottimer = 0
-rainheart.projectile = {}
-	rainheart.projectile.parent = ""
-	rainheart.projectile.sprite = 19
-	rainheart.projectile.mass = 0.25
-	rainheart.projectile.maxage = 2
-	rainheart.projectile.bounce = false
-	rainheart.projectile.damage = 2
-	rainheart.projectile.firedelay = 4 --draw frames between shots
-	rainheart.projectile.velocity = {}
-		rainheart.projectile.velocity.x = 1
-		rainheart.projectile.velocity.y = 0
-	rainheart.projectile.sca = {}
-		rainheart.projectile.sca.x = 6
-		rainheart.projectile.sca.y = 6
-	rainheart.projectile.pixeloffset = {}
-		rainheart.projectile.pixeloffset.x = 0
-		rainheart.projectile.pixeloffset.y = 0
-rainheart.alternateshottimer = 0
-rainheart.alternate = {}
-	rainheart.alternate.parent = ""
-	rainheart.alternate.sprite = 20
-	rainheart.alternate.mass = 1
-	rainheart.alternate.maxage = 1
-	rainheart.alternate.bounce = false
-	rainheart.alternate.damage = 0
-	rainheart.alternate.firedelay = 1 --draw frames between shots
-	rainheart.alternate.velocity = {}
-		rainheart.alternate.velocity.x = 0
-		rainheart.alternate.velocity.y = 0
-	rainheart.alternate.sca = {}
-		rainheart.alternate.sca.x = 1
-		rainheart.alternate.sca.y = 8
-	rainheart.alternate.pixeloffset = {}
-		rainheart.alternate.pixeloffset.x = 1
-		rainheart.alternate.pixeloffset.y = 0
+
+------------------rainhorse----------------------
+rainhorse = copy(char_template)
+rainhorse.character = "rainhorse"
+rainhorse.mass = 2
+rainhorse.hp = 15
+rainhorse.maxhp = 15
+rainhorse.animations = {}
+	rainhorse.animations.idle = {16}
+	rainhorse.animations.walk = {17,17,17,18,18,18}
+	rainhorse.animations.jump = {17}
+rainhorse.projectile = {}
+	rainhorse.projectile.parent = ""
+	rainhorse.projectile.sprite = 19
+	rainhorse.projectile.mass = 0.25
+	rainhorse.projectile.maxage = 2
+	rainhorse.projectile.bounce = false
+	rainhorse.projectile.damage = 2
+	rainhorse.projectile.firedelay = 15 --draw frames between shots
+	rainhorse.projectile.velocity = {}
+		rainhorse.projectile.velocity.x = 1
+		rainhorse.projectile.velocity.y = 0
+	rainhorse.projectile.sca = {}
+		rainhorse.projectile.sca.x = 6
+		rainhorse.projectile.sca.y = 6
+	rainhorse.projectile.pixeloffset = {}
+		rainhorse.projectile.pixeloffset.x = 0
+		rainhorse.projectile.pixeloffset.y = 0
+rainhorse.alternate = {}
+	rainhorse.alternate.parent = ""
+	rainhorse.alternate.sprite = 20
+	rainhorse.alternate.mass = 1
+	rainhorse.alternate.maxage = 2
+	rainhorse.alternate.bounce = false
+	rainhorse.alternate.damage = 0
+	rainhorse.alternate.firedelay = 0 --draw frames between shots
+	rainhorse.alternate.velocity = {}
+		rainhorse.alternate.velocity.x = 0
+		rainhorse.alternate.velocity.y = 0
+	rainhorse.alternate.sca = {}
+		rainhorse.alternate.sca.x = 1
+		rainhorse.alternate.sca.y = 8
+	rainhorse.alternate.pixeloffset = {}
+		rainhorse.alternate.pixeloffset.x = 1
+		rainhorse.alternate.pixeloffset.y = 0
+
 --------------------------spiderlady----------------------
-spiderlady = {}
-spiderlady.pos = {}
-spiderlady.pos.x = 0
-spiderlady.pos.y = 0
-spiderlady.sca = {}
-spiderlady.sca.x = 8
-spiderlady.sca.y = 8
-spiderlady.velocity = {}
-spiderlady.velocity.x = rnd(2)
-spiderlady.velocity.y = rnd(2)
-spiderlady.mass = 1
+spiderlady = copy(char_template)
+spiderlady.character = "spiderlady"
 spiderlady.speed = 0.2
 spiderlady.jumpheight = 7.5
-spiderlady.isjumping = true
-spiderlady.ismortal = true
 spiderlady.hp = 3
 spiderlady.maxhp = 3
-spiderlady.sprite = 5
-spiderlady.current_animation = "idle"
 spiderlady.animations = {}
 	spiderlady.animations.idle = {5}
 	spiderlady.animations.walk = {6,6,6,7,7,7}
 	spiderlady.animations.jump = {6}
-spiderlady.movement_behavior = "follow"
-spiderlady.attack_behavior = "primary"
-spiderlady.spriteflip = {}
-spiderlady.spriteflip.x = true
-spiderlady.spriteflip.y = false
-spiderlady.shottimer = 0
 spiderlady.projectile = {}
 	spiderlady.projectile.parent = ""
 	spiderlady.projectile.sprite = 8
@@ -283,7 +266,6 @@ spiderlady.projectile = {}
 	spiderlady.projectile.pixeloffset = {}
 		spiderlady.projectile.pixeloffset.x = 0
 		spiderlady.projectile.pixeloffset.y = 2
-spiderlady.alternateshottimer = 0
 spiderlady.alternate = {}
 	spiderlady.alternate.parent = ""
 	spiderlady.alternate.sprite = 9
@@ -291,7 +273,7 @@ spiderlady.alternate = {}
 	spiderlady.alternate.maxage = 10
 	spiderlady.alternate.bounce = true
 	spiderlady.alternate.damage = 2
-	spiderlady.alternate.firedelay = 10 --draw frames between shots
+	spiderlady.alternate.firedelay = 40 --draw frames between shots
 	spiderlady.alternate.velocity = {}
 		spiderlady.alternate.velocity.x = 5
 		spiderlady.alternate.velocity.y = -2.5
@@ -302,107 +284,111 @@ spiderlady.alternate = {}
 		spiderlady.alternate.pixeloffset.x = 0
 		spiderlady.alternate.pixeloffset.y = 0
 
+--------------------------grace----------------------
+grace = copy(char_template)
+grace.character = "grace"
+grace.speed = 0.2
+grace.jumpheight = 5
+grace.hp = 5
+grace.maxhp = 5
+grace.mass = 0.1
+grace.animations = {}
+	grace.animations.idle = {21}
+	grace.animations.walk = {22,22,22,22,23,23,23,23}
+	grace.animations.jump = {22}
+grace.projectile = {}
+	grace.projectile.parent = ""
+	grace.projectile.sprite = 24
+	grace.projectile.mass = 0.1
+	grace.projectile.maxage = 1
+	grace.projectile.bounce = false
+	grace.projectile.damage = -1
+	grace.projectile.firedelay = 1 --draw frames between shots
+	grace.projectile.velocity = {}
+		grace.projectile.velocity.x = 4
+		grace.projectile.velocity.y = 0
+	grace.projectile.sca = {}
+		grace.projectile.sca.x = 8
+		grace.projectile.sca.y = 3
+	grace.projectile.pixeloffset = {}
+		grace.projectile.pixeloffset.x = 3
+		grace.projectile.pixeloffset.y = 1
+grace.alternate = {}
+	grace.alternate.parent = ""
+	grace.alternate.sprite = 25
+	grace.alternate.mass = 0.1
+	grace.alternate.maxage = 10
+	grace.alternate.bounce = false
+	grace.alternate.damage = 1
+	grace.alternate.firedelay = 15 --draw frames between shots
+	grace.alternate.velocity = {}
+		grace.alternate.velocity.x = 5
+		grace.alternate.velocity.y = 0
+	grace.alternate.sca = {}
+		grace.alternate.sca.x = 2
+		grace.alternate.sca.y = 1
+	grace.alternate.pixeloffset = {}
+		grace.alternate.pixeloffset.x = 0
+		grace.alternate.pixeloffset.y = 2
 
+all_characters = {soldier24,filthmouse,rainhorse,spiderlady, grace}
 
---copy tables, yum.
-function copy(o)
-	local c
-	if type(o) == 'table' then
-		c = {}
-		for k, v in pairs(o) do
-		c[k] = copy(v)
-		end
-	else
-		c = o
-	end
-	return c
-end
-
--------------------entities
+------------------------------------init functions-----------------------------------
+-----------------------------------------------------------------------------------
 function make_player()
-	temp_entity = copy(rainheart)
+	temp_entity = copy(grace)
+	temp_entity.team = "team1"
 	temp_entity.projectile.parent = "team1"
 	temp_entity.alternate.parent = "team1"
 	temp_entity.pos.x = rnd(256)
 	temp_entity.pos.y = rnd(128) - phys.ground_height
 	add(player_entities, temp_entity)
+	cam.target = temp_entity
 end
 
 function make_ai()
-	temp_entity = copy(filthmouse)
-	temp_entity.projectile.parent = "team1"
-	temp_entity.alternate.parent = "team1"
-	temp_entity.pos.x = rnd(256)
-	temp_entity.pos.y = rnd(128) - phys.ground_height
-	add(ai_entities, temp_entity)
-	temp_entity = copy(spiderlady)
-	temp_entity.projectile.parent = "team1"
-	temp_entity.alternate.parent = "team1"
-	temp_entity.pos.x = rnd(256)
-	temp_entity.pos.y = rnd(128) - phys.ground_height
-	add(ai_entities, temp_entity)
-	temp_entity = copy(soldier24)
-	temp_entity.projectile.parent = "team1"
-	temp_entity.alternate.parent = "team1"
-	temp_entity.pos.x = rnd(256)
-	temp_entity.pos.y = rnd(128) - phys.ground_height
-	add(ai_entities, temp_entity)
-
-	temp_entity = copy(soldier24)
-	temp_entity.projectile.parent = "team2"
-	temp_entity.alternate.parent = "team2"
-	temp_entity.pos.x = rnd(256)+256
-	temp_entity.pos.y = rnd(128) - phys.ground_height
-	add(ai_entities, temp_entity)
-	temp_entity = copy(rainheart)
-	temp_entity.projectile.parent = "team2"
-	temp_entity.alternate.parent = "team2"
-	temp_entity.pos.x = rnd(256)+256
-	temp_entity.pos.y = rnd(128) - phys.ground_height
-	add(ai_entities, temp_entity)
-	temp_entity = copy(spiderlady)
-	temp_entity.projectile.parent = "team2"
-	temp_entity.alternate.parent = "team2"
-	temp_entity.pos.x = rnd(256)+256
-	temp_entity.pos.y = rnd(128) - phys.ground_height
-	add(ai_entities, temp_entity)
-	temp_entity = copy(filthmouse)
-	temp_entity.projectile.parent = "team2"
-	temp_entity.alternate.parent = "team2"
-	temp_entity.pos.x = rnd(256)+256
-	temp_entity.pos.y = rnd(128) - phys.ground_height
-	add(ai_entities, temp_entity)
+	--team 1
+	for i=1,#all_characters do
+		temp_entity = copy(all_characters[i])
+		temp_entity.team = "team1"
+		temp_entity.projectile.parent = "team1"
+		temp_entity.alternate.parent = "team1"
+		temp_entity.pos.x = rnd(256)
+		temp_entity.pos.y = rnd(128) - phys.ground_height
+		add(ai_entities, temp_entity)
+	end
+	--team 2
+	for i=1,#all_characters do
+		temp_entity = copy(all_characters[i])
+		temp_entity.team = "team2"
+		temp_entity.projectile.parent = "team2"
+		temp_entity.alternate.parent = "team2"
+		temp_entity.pos.x = rnd(256)+256
+		temp_entity.pos.y = rnd(128) - phys.ground_height
+		add(ai_entities, temp_entity)
+	end
 end
 
-function make_projectile(sprite, mass, bounce, damage, sca, pos, velocity, maxage, direction, parent)
-	proj = {}
-	proj.age = 0
-	proj.maxage = maxage
-	proj.damage = damage
-	proj.parent = parent
+function make_projectile(entity, projectile)
+	proj = copy(projectile)
 	proj.pos = {}
-		proj.pos.x = pos.x
-		proj.pos.y = pos.y
-	proj.sca = {}
-		proj.sca.x = sca.x
-		proj.sca.y = sca.y
-	proj.velocity = {}
-		if direction == true then
-			proj.velocity.x = velocity.x*-1
-		else
-			proj.velocity.x = velocity.x
-		end
-		proj.velocity.y = velocity.y
-	proj.mass = mass
-	proj.bounce = bounce
-	proj.sprite = sprite
+	proj.age = 0
 	proj.spriteflip = {}
-		proj.spriteflip.x = direction
-		proj.spriteflip.y = false
+	if entity.spriteflip.x == true then
+		proj.spriteflip.x = true
+		proj.velocity.x = projectile.velocity.x*-1
+		proj.pos.x = entity.pos.x-projectile.pixeloffset.x
+	else
+		proj.pos.x = entity.pos.x+entity.sca.x+projectile.pixeloffset.x
+	end
+	proj.pos.y = entity.pos.y+entity.projectile.pixeloffset.y
 
 	add(projectiles, proj)
 end
 
+
+--------------------------------------ai functions-------------------------------------
+----------------------------------------------------------------------------------------
 
 function ai_movement_behavior(entity)
 	if entity.movement_behavior == "random" then
@@ -417,16 +403,15 @@ function ai_movement_behavior(entity)
 		end
 		entity.current_animation = "walk"
 	elseif entity.movement_behavior == "follow" then
-		if player_entities[1] then
-			if player_entities[1].pos.x > entity.pos.x then
+
+		if entity.target then
+			if entity.target.pos.x > entity.pos.x then
 				entity.velocity.x += rnd(entity.speed)+rnd(entity.speed)
 			else
 				entity.velocity.x -= rnd(entity.speed)+rnd(entity.speed)
 			end
-			if player_entities[1].pos.y < entity.pos.y then
-				if rnd(10) < 1 and entity.isjumping != true then
-					entity.velocity.y -= rnd(entity.jumpheight)
-				end
+			if rnd(10) < 1 and entity.isjumping != true then
+				entity.velocity.y -= rnd(entity.jumpheight)
 			end
 		end
 		entity.current_animation = "walk"
@@ -446,51 +431,80 @@ function ai_attack_behavior(entity)
 		--counter
 		entity.shottimer -= 1
 
-		--adjust bullet start location
-		adjustedpos = {}
-		if entity.spriteflip.x then
-			adjustedpos.x = entity.pos.x-entity.sca.x-entity.projectile.pixeloffset.x+1
-		else
-			adjustedpos.x = entity.pos.x+entity.sca.x+entity.projectile.pixeloffset.x
-		end
-		adjustedpos.y = entity.pos.y+entity.projectile.pixeloffset.y
-
 		if entity.shottimer <= 0 then
 			entity.shottimer = entity.projectile.firedelay
-			make_projectile(entity.projectile.sprite, entity.projectile.mass, entity.projectile.bounce, entity.projectile.damage, entity.projectile.sca, adjustedpos, entity.projectile.velocity, entity.projectile.maxage, entity.spriteflip.x, entity.projectile.parent)
+			make_projectile(entity, entity.projectile)
 		end
 	elseif entity.attack_behavior == "alternate" then
 		--counter
 		entity.alternateshottimer -= 1
 
-		--adjust bullet start location
-		adjustedpos = {}
-		if entity.spriteflip.x then
-			adjustedpos.x = entity.pos.x-entity.sca.x-entity.alternate.pixeloffset.x+1
-		else
-			adjustedpos.x = entity.pos.x+entity.sca.x+entity.alternate.pixeloffset.x
-		end
-		adjustedpos.y = entity.pos.y+entity.alternate.pixeloffset.y
-
 		if entity.alternateshottimer <= 0 then
 			entity.alternateshottimer = entity.alternate.firedelay
-			make_projectile(entity.alternate.sprite, entity.alternate.mass, entity.alternate.bounce, entity.alternate.damage, entity.alternate.sca, adjustedpos, entity.alternate.velocity, entity.alternate.maxage, entity.spriteflip.x, entity.alternate.parent)
+			make_projectile(entity, entity.alternate)
+			if entity.character == "rainhorse" then
+				entity.shielded = true
+			end
 		end
 
-		--probably a better way to do this
-		if entity.alternate.damage == 0 then
-			entity.ismortal = false
+	elseif entity.attack_behavior == "cycle" then
+		--counter
+		entity.shottimer -= 1
+		entity.alternateshottimer -= 1
+		if rnd(10) < 5 then
+			if entity.shottimer <= 0 and phys.time%2 == 0 then
+				entity.shottimer = entity.projectile.firedelay
+				make_projectile(entity, entity.projectile)
+			end
+			if entity.alternateshottimer <= 0 and phys.time%2 == 1 then
+				entity.alternateshottimer = entity.alternate.firedelay
+				make_projectile(entity, entity.alternate)
+				if entity.character == "rainhorse" then
+					entity.shielded = true
+				end
+			end
+		end
+
+
+	end
+end
+
+function ai_get_target(entity)
+	--then ai
+	otherteam = {}
+	for key,otherentity in pairs(ai_entities) do
+		if otherentity.team != entity.team then
+			add(otherteam, otherentity)
 		end
 	end
+	return otherteam[flr(rnd(#otherteam))+1]
 end
 
 function assess_hp(entity, table)
 	if entity.hp <= 0 then
+		--temporary fun forever fight!----------------------
+		team = entity.team
+		tmp = copy(all_characters[flr(rnd(#all_characters))+1])
+		tmp.pos.x = rnd(256)
+		tmp.pos.y = rnd(128) - phys.ground_height
+		tmp.team = team
+		tmp.projectile.parent = team
+		tmp.alternate.parent = team
+		add(ai_entities, tmp)
+		------------------------------------
+		if team == "team1" then
+			game.score.team2 += 1
+		else
+			game.score.team1 += 1
+		end
 		del(table, entity)
+	elseif entity.hp > entity.maxhp then
+		entity.hp = entity.maxhp
 	end
 end
 
-------------physics
+------------------------------------physics functions-----------------------------------
+----------------------------------------------------------------------------------------
 function apply_gravity(entity)
 	entity.velocity.y = entity.velocity.y-phys.gravity[2]*entity.mass
 end
@@ -527,7 +541,7 @@ function apply_solid_body_collision(entity)
 	--left
 	val = mget(left[1]+currmap.cel.x, left[2]+currmap.cel.y)
 	if fget(val, 7) == true then
-		entity.velocity.x *= phys.bounce[1]
+		entity.velocity.x *= -phys.bounce[1]
 		entity.pos.x = (left[1]+1)*8 -- make sure the entity stays within bounds
 		return
 	end
@@ -535,7 +549,7 @@ function apply_solid_body_collision(entity)
 	--right
 	val = mget(right[1]+currmap.cel.x, right[2]+currmap.cel.y)
 	if fget(val, 7) == true then
-		entity.velocity.x *= phys.bounce[1]
+		entity.velocity.x *= -phys.bounce[1]
 		entity.pos.x = (right[1]-1)*8 -- make sure the entity stays within bounds
 		return
 	end
@@ -543,14 +557,14 @@ function apply_solid_body_collision(entity)
 	--top
 	val = mget(top[1]+currmap.cel.x, top[2]+currmap.cel.y)
 	if fget(val, 7) == true then
-		entity.velocity.y *= -1
+		entity.velocity.y *= -phys.bounce[2]
 		entity.pos.y = (top[2]+1)*8 -- make sure the entity stays within bounds
 		return
 	end
 
 end
 
-function projectile_collision(entity, parenttype)
+function projectile_collision(entity)
 	for key,bullet in pairs(projectiles) do
 		c = bullet.pos.x;
 		d = bullet.pos.y;
@@ -567,16 +581,15 @@ function projectile_collision(entity, parenttype)
 		if(a>w and c>w and a>y and c>y) intersect = false
 		if(b<x and d<x and b<z and d<z) intersect = false
 		if(b>x and d>x and b>z and d>z) intersect = false
-		if intersect and bullet.parent != entity.projectile.parent then
-			if entity.ismortal then
-				entity.hp -= bullet.damage
-			end
+		if intersect and entity.ismortal and entity.shielded == false and bullet.damage != nil and ((bullet.damage > 0 and bullet.parent != entity.team) or (bullet.damage < 0 and bullet.parent == entity.team)) then
+			entity.hp -= bullet.damage
 			del(projectiles, bullet)
 		end
 	end
 end
 
--------------drawing
+------------------------------------drawing functions-----------------------------------
+----------------------------------------------------------------------------------------
 function draw_entity(entity)
 	spr(entity.sprite, entity.pos.x, entity.pos.y, entity.sca.x/8, entity.sca.y/8, entity.spriteflip.x, entity.spriteflip.y)
 end
@@ -586,14 +599,16 @@ function draw_map()
 end
 
 function move_camera()
-	camera(cam.pos.x,cam.pos.y)
-	if player_entities[1] then
-		cam.pos.x = cam.pos.x + (player_entities[1].pos.x - (cam.pos.x+cam.offset.x))/cam.followdistance.x
-		cam.pos.y = cam.pos.y + (player_entities[1].pos.y - (cam.pos.y+cam.offset.y))/cam.followdistance.y
+	if cam.target then
+		cam.pos.x = cam.pos.x + (cam.target.pos.x - (cam.pos.x+cam.offset.x))/cam.followdistance.x
+		cam.pos.y = cam.pos.y + (cam.target.pos.y - (cam.pos.y+cam.offset.y))/cam.followdistance.y
 	end
+	camera(cam.pos.x,cam.pos.y)
 end
 
 function set_animation_frame(entity)
+
+	--select animation based on movement
 	if entity.isjumping and entity.velocity.y < 0 then
 		entity.current_animation = "jump"
 	elseif entity.velocity.x > 0.2 or entity.velocity.x < -0.2 then
@@ -602,7 +617,7 @@ function set_animation_frame(entity)
 		entity.current_animation = "idle"
 	end
 
-
+	--assign animation frame to draw sprite. animation frames use phys.time modulus the length of the animation
 	if entity.current_animation == "idle" then
 		entity.sprite = entity.animations.idle[phys.time % #entity.animations.idle+1]
 	end
@@ -614,8 +629,18 @@ function set_animation_frame(entity)
 	end
 end
 
------------pico functions--------------
----------------------------------------
+function draw_health_bar(entity)
+	if entity.projectile.parent == "team1" then
+		colors = {1,12}
+	else
+		colors = {2,8}
+	end
+	line(entity.pos.x, entity.pos.y-7, entity.pos.x+entity.sca.x, entity.pos.y-7, colors[1])
+	line(entity.pos.x, entity.pos.y-7, entity.pos.x+((entity.hp/entity.maxhp)*entity.sca.x), entity.pos.y-7, colors[2])
+end
+
+----------------------------------------execution---------------------------------------
+----------------------------------------------------------------------------------------
 function _init()
 	cls()
 	make_player()
@@ -625,7 +650,9 @@ end
 function _update()
 	--ai entities
 	for key,entity in pairs(ai_entities) do
+		cleanup(entity, ai_entities)
 		assess_hp(entity, ai_entities)
+		entity.target = ai_get_target(entity)
 		ai_movement_behavior(entity)
 		ai_attack_behavior(entity)
 		apply_gravity(entity)
@@ -638,7 +665,9 @@ function _update()
 
 	--player entities
 	for key,entity in pairs(player_entities) do
+		cleanup(entity, player_entities)
 		assess_hp(entity, player_entities)
+		entity.target = ai_get_target(entity)
 		apply_gravity(entity)
 		apply_velocity(entity)
 		apply_solid_body_collision(entity)
@@ -649,6 +678,7 @@ function _update()
 
 	--projectiles
 	for key,entity in pairs(projectiles) do
+		cleanup(entity, projectiles)
 		apply_gravity(entity)
 		apply_velocity(entity)
 		if entity.bounce then
@@ -666,8 +696,49 @@ function _draw()
 	cls()
 	phys.time += 1
 
-	-----------------------player input----------------------
-	---------------------------------------------------------
+	--camera
+	if #player_entities > 0 then
+		cam.target = player_entities[1]
+	elseif #ai_entities > 0 then
+		cam.target = ai_entities[2]
+	end
+	move_camera()
+
+	--gui
+	print(game.score.team1.."-"..game.score.team2, cam.pos.x, cam.pos.y)
+
+	--map
+	draw_map()
+
+	--ai entities
+	for key,entity in pairs(ai_entities) do
+		draw_entity(entity)
+		draw_health_bar(entity)
+
+		if entity.character == "rainhorse" then
+			entity.shielded = false
+		end
+	end
+
+	--player entities
+	for key,entity in pairs(player_entities) do
+		draw_entity(entity)
+		draw_health_bar(entity)
+
+		--resets
+		if entity.character == "rainhorse" then
+			entity.shielded = false
+		end
+	end
+
+	--projectiles
+	for key,entity in pairs(projectiles) do
+		draw_entity(entity)
+	end
+
+
+	-------------------------------------player feedback------------------------------------
+	----------------------------------------------------------------------------------------
 	if btn(0) then
 		--left
 		for key,entity in pairs(player_entities) do
@@ -695,6 +766,12 @@ function _draw()
 		--down
 	end
 	if btn(4) then
+		--take control of ai character
+		if #player_entities == 0 and #ai_entities > 0 then
+			add(player_entities, ai_entities[1])
+			del(ai_entities, ai_entities[1])
+		end
+
 		--one
 		for key,entity in pairs(player_entities) do
 			--counter
@@ -712,8 +789,9 @@ function _draw()
 			--main fire
 			if entity.shottimer <= 0 then
 				entity.shottimer = entity.projectile.firedelay
-				make_projectile(entity.projectile.sprite, entity.projectile.mass, entity.projectile.bounce, entity.projectile.damage, entity.projectile.sca, adjustedpos, entity.projectile.velocity, entity.projectile.maxage, entity.spriteflip.x, entity.projectile.parent)
+				make_projectile(entity, entity.projectile)
 			end
+
 			
 		end
 	end
@@ -734,44 +812,13 @@ function _draw()
 			--alternate fire
 			if entity.alternateshottimer <= 0 then
 				entity.alternateshottimer = entity.alternate.firedelay
-				make_projectile(entity.alternate.sprite, entity.alternate.mass, entity.alternate.bounce, entity.projectile.damage, entity.alternate.sca, adjustedpos, entity.alternate.velocity, entity.alternate.maxage, entity.spriteflip.x, entity.alternate.parent)
-			end
-
-			--probably a better way
-			if entity.alternate.damage == 0 then
-				entity.ismortal = false
-			end
-		end
-	else
-		for key,entity in pairs(player_entities) do
-			--probably a better way
-			if entity.alternate.damage == 0 then
-				entity.ismortal = true
+				make_projectile(entity, entity.alternate)
+				if entity.character == "rainhorse" then
+					entity.shielded = true
+				end
 			end
 		end
 	end
-
-	--camera
-	move_camera()
-
-	--map
-	draw_map()
-
-	--ai entities
-	for key,entity in pairs(ai_entities) do
-		draw_entity(entity)
-	end
-
-	--player entities
-	for key,entity in pairs(player_entities) do
-		draw_entity(entity)
-	end
-
-	--projectiles
-	for key,entity in pairs(projectiles) do
-		draw_entity(entity)
-	end
-	
 end
 
 
@@ -784,30 +831,30 @@ __gfx__
 055500000555000005550000000000000000000006e6000006e6000006e600000000000000000000000000000000000000000000000000000000000000000000
 05050000050500000505000000000000000000000505000005050000050500000000000000000000000000000000000000000000000000000000000000000000
 06060000600600000660000000000000000000000505000050050000055000000000000000000000000000000000000000000000000000000000000000000000
-00000600000006000000060006600000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00066600000666000006660000665000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-06065a0606065a0606065a0600656500c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-06665566066655660666556606505000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-05666665056666650566666565000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-005f560f005f560f005f560f50000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00056500000565000005650000000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00050500005005000005500000000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0009a9000009a9000009a90009000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000af400000af400000af40098900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-060fff00060fff00060fff0009000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000600000006000000060006600000c0000000770a9a00770a9a00000a9a0009000000a9000000000000000000000000000000000000000000000000000000
+00066600000666000006660000665000c0000000a779af00a779af007709af00aa99999900000000000000000000000000000000000000000000000000000000
+06065a0606065a0606065a0600656500c00000000a7afe050a7afe05a77afe050900000000000000000000000000000000000000000000000000000000000000
+06665566066655660666556606505000c000000000a6665000a666500a7666500000000000000000000000000000000000000000000000000000000000000000
+05666665056666650566666565000000c0000000000775700007757000a775700000000000000000000000000000000000000000000000000000000000000000
+005f560f005f560f005f560f50000000c00000000006560000065600000656000000000000000000000000000000000000000000000000000000000000000000
+00056500000565000005650000000000c00000000005060000050600000506000000000000000000000000000000000000000000000000000000000000000000
+00050500005005000005500000000000c00000000006060000606000006060000000000000000000000000000000000000000000000000000000000000000000
+00a9a90000a9a900009a9a0009000000088000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000aff00000aff000009ff0098900000555500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+060ff700060ff700060ff70009000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 005a555a005a555a005a555a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-005fff50005fff50005fff5000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+005ff500005ff500005ff50000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 06099900060999000609990000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00090700000907000009070000000000006886000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00070700007007000007700000000000055555500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-3b3b3b334444444411111111dddddddd888888880000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-b333b33b4444444411111111ddddddddeeeeeeee0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-353353354444444411111111dddddddde22ee2e20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-434343434444444411111111dddddddd2dde2d2d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-444444444444444411111111ddddddddddd2dddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-444444444444444411111111dddddddddddddddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-444444444444444411111111dddddddddddddddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-444444444444444411111111dddddddddddddddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00090700000907000009070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00070700007007000007700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3b3b3b334444444400000000dddddddd888888880000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+b333b33b4444444400000000ddddddddeeeeeeee0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+353353354444444400000000dddddddde22ee2e20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+434343434444444400000000dddddddd2dde2d2d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+444444444444444400000000ddddddddddd2dddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+444444444444444400000000dddddddddddddddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+444444444444444400000000dddddddddddddddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+444444444444444400000000dddddddddddddddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -921,8 +968,8 @@ __map__
 3132323232323232323232323232323232323232323232323232323232323234343434343232323232323232323232323232323232323232323232323234343300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 3132323230303232323232323230303030323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 3132323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232343432323300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-3132323232323232323232323232323232323232323232323232323232323232323232323232323432323232323232323432323232323232323234343432323300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-3132323232323232323232323232323232323230303030323232323232323232323232323234343432323232323232343434323232323232323434343432323300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3132323232323232323232323232323232323232323232323232323232323232323232323232343434323232323232323432323232323232323234343432323300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3132323232323232323232323232323232323230303030323232323232323232323232323234343434343232323232343434323232323232323434343432323300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 3030303030303030303030303030303030303030303030303030303030303030343434343434343434343434343434343434343434343434343434343434343300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f0000000000000000000000003f3f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000003f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
