@@ -7,8 +7,8 @@ Any resemblance to existing copyrighted material is purely coincidental and unin
 
 # CHANGELOG
 version 0.7
--Began first map design
--Added ladder functionality
+- Began first map design
+- Added ladder functionality
 
 version 0.6
 - added robogirl and harvester
