@@ -407,12 +407,193 @@ bowman.alternate = {}
 			bowman.alternate[2].pixeloffset.x = 0
 			bowman.alternate[2].pixeloffset.y = 3
 
-all_characters = {soldier24, filthmouse, rainhorse, spiderlady, grace, bowman}
+--------------------------harvester----------------------
+harvester = copy(char_template)
+harvester.character = "harvester"
+harvester.jumpheight = 5
+harvester.hp = 5
+harvester.maxhp = 5
+harvester.mass = 0.1
+harvester.animations = {}
+	harvester.animations.idle = {10}
+	harvester.animations.walk = {11,11,11,11,12,12,12,12}
+	harvester.animations.jump = {11}
+harvester.primary = {}
+	harvester.primary[1] = {}
+		harvester.primary[1].parent = ""
+		harvester.primary[1].sprite = 13
+		harvester.primary[1].mass = 1
+		harvester.primary[1].maxage = 5
+		harvester.primary[1].bounce = false
+		harvester.primary[1].damage = 1
+		harvester.primary[1].firedelay = 15 --draw frames between shots
+		harvester.primary[1].velocity = {}
+			harvester.primary[1].velocity.x = 5
+			harvester.primary[1].velocity.y = 0
+		harvester.primary[1].sca = {}
+			harvester.primary[1].sca.x = 1
+			harvester.primary[1].sca.y = 1
+		harvester.primary[1].pixeloffset = {}
+			harvester.primary[1].pixeloffset.x = 0
+			harvester.primary[1].pixeloffset.y = 3
+	harvester.primary[2] = {}
+		harvester.primary[2].parent = ""
+		harvester.primary[2].sprite = 13
+		harvester.primary[2].mass = 1
+		harvester.primary[2].maxage = 5
+		harvester.primary[2].bounce = false
+		harvester.primary[2].damage = 1
+		harvester.primary[2].firedelay = 15 --draw frames between shots
+		harvester.primary[2].velocity = {}
+			harvester.primary[2].velocity.x = 5
+			harvester.primary[2].velocity.y = -2
+		harvester.primary[2].sca = {}
+			harvester.primary[2].sca.x = 1
+			harvester.primary[2].sca.y = 1
+		harvester.primary[2].pixeloffset = {}
+			harvester.primary[2].pixeloffset.x = 0
+			harvester.primary[2].pixeloffset.y = 3
+	harvester.primary[3] = {}
+		harvester.primary[3].parent = ""
+		harvester.primary[3].sprite = 13
+		harvester.primary[3].mass = 1
+		harvester.primary[3].maxage = 5
+		harvester.primary[3].bounce = false
+		harvester.primary[3].damage = 1
+		harvester.primary[3].firedelay = 10 --draw frames between shots
+		harvester.primary[3].velocity = {}
+			harvester.primary[3].velocity.x = 5
+			harvester.primary[3].velocity.y = -1
+		harvester.primary[3].sca = {}
+			harvester.primary[3].sca.x = 1
+			harvester.primary[3].sca.y = 1
+		harvester.primary[3].pixeloffset = {}
+			harvester.primary[3].pixeloffset.x = 0
+			harvester.primary[3].pixeloffset.y = 3
+harvester.alternate = {}
+	harvester.alternate[1] = {}
+		harvester.alternate[1].parent = ""
+		harvester.alternate[1].sprite = 14
+		harvester.alternate[1].mass = 2
+		harvester.alternate[1].maxage = 100
+		harvester.alternate[1].bounce = false
+		harvester.alternate[1].damage = 0
+		harvester.alternate[1].firedelay = 60 --draw frames between shots
+		harvester.alternate[1].velocity = {}
+			harvester.alternate[1].velocity.x = 0
+			harvester.alternate[1].velocity.y = 0
+		harvester.alternate[1].sca = {}
+			harvester.alternate[1].sca.x = 8
+			harvester.alternate[1].sca.y = 4
+		harvester.alternate[1].pixeloffset = {}
+			harvester.alternate[1].pixeloffset.x = -8
+			harvester.alternate[1].pixeloffset.y = 4
+	harvester.alternate[2] = {}
+		harvester.alternate[2].parent = ""
+		harvester.alternate[2].sprite = 14
+		harvester.alternate[2].mass = 2
+		harvester.alternate[2].maxage = 100
+		harvester.alternate[2].bounce = false
+		harvester.alternate[2].damage = 0
+		harvester.alternate[2].firedelay = 60 --draw frames between shots
+		harvester.alternate[2].velocity = {}
+			harvester.alternate[2].velocity.x = 0
+			harvester.alternate[2].velocity.y = 0
+		harvester.alternate[2].sca = {}
+			harvester.alternate[2].sca.x = 8
+			harvester.alternate[2].sca.y = 4
+		harvester.alternate[2].pixeloffset = {}
+			harvester.alternate[2].pixeloffset.x = 56
+			harvester.alternate[2].pixeloffset.y = 4
+
+------------------robogirl----------------------
+robogirl = copy(char_template)
+robogirl.character = "robogirl"
+robogirl.mass = 1
+robogirl.hp = 10
+robogirl.maxhp = 10
+robogirl.animations = {}
+	robogirl.animations.idle = {26}
+	robogirl.animations.walk = {27,27,27,28,28,28}
+	robogirl.animations.jump = {27}
+robogirl.primary = {}
+	robogirl.primary[1] = {}
+		robogirl.primary[1].parent = ""
+		robogirl.primary[1].sprite = 29
+		robogirl.primary[1].mass = 1
+		robogirl.primary[1].maxage = 5
+		robogirl.primary[1].bounce = false
+		robogirl.primary[1].damage = 1
+		robogirl.primary[1].firedelay = 15 --draw frames between shots
+		robogirl.primary[1].velocity = {}
+			robogirl.primary[1].velocity.x = 5
+			robogirl.primary[1].velocity.y = 0
+		robogirl.primary[1].sca = {}
+			robogirl.primary[1].sca.x = 1
+			robogirl.primary[1].sca.y = 1
+		robogirl.primary[1].pixeloffset = {}
+			robogirl.primary[1].pixeloffset.x = 0
+			robogirl.primary[1].pixeloffset.y = 3
+	robogirl.primary[2] = {}
+		robogirl.primary[2].parent = ""
+		robogirl.primary[2].sprite = 29
+		robogirl.primary[2].mass = 1
+		robogirl.primary[2].maxage = 5
+		robogirl.primary[2].bounce = false
+		robogirl.primary[2].damage = 1
+		robogirl.primary[2].firedelay = 15 --draw frames between shots
+		robogirl.primary[2].velocity = {}
+			robogirl.primary[2].velocity.x = 5
+			robogirl.primary[2].velocity.y = -2
+		robogirl.primary[2].sca = {}
+			robogirl.primary[2].sca.x = 1
+			robogirl.primary[2].sca.y = 1
+		robogirl.primary[2].pixeloffset = {}
+			robogirl.primary[2].pixeloffset.x = 0
+			robogirl.primary[2].pixeloffset.y = 3
+	robogirl.primary[3] = {}
+		robogirl.primary[3].parent = ""
+		robogirl.primary[3].sprite = 29
+		robogirl.primary[3].mass = 1
+		robogirl.primary[3].maxage = 5
+		robogirl.primary[3].bounce = false
+		robogirl.primary[3].damage = 1
+		robogirl.primary[3].firedelay = 10 --draw frames between shots
+		robogirl.primary[3].velocity = {}
+			robogirl.primary[3].velocity.x = 5
+			robogirl.primary[3].velocity.y = -1
+		robogirl.primary[3].sca = {}
+			robogirl.primary[3].sca.x = 1
+			robogirl.primary[3].sca.y = 1
+		robogirl.primary[3].pixeloffset = {}
+			robogirl.primary[3].pixeloffset.x = 0
+			robogirl.primary[3].pixeloffset.y = 3
+robogirl.alternate = {}
+	robogirl.alternate[1] = {}
+		robogirl.alternate[1].parent = ""
+		robogirl.alternate[1].sprite = 30
+		robogirl.alternate[1].mass = 1
+		robogirl.alternate[1].maxage = 2
+		robogirl.alternate[1].bounce = false
+		robogirl.alternate[1].damage = 0
+		robogirl.alternate[1].firedelay = 0 --draw frames between shots
+		robogirl.alternate[1].velocity = {}
+			robogirl.alternate[1].velocity.x = 0
+			robogirl.alternate[1].velocity.y = 0
+		robogirl.alternate[1].sca = {}
+			robogirl.alternate[1].sca.x = 8
+			robogirl.alternate[1].sca.y = 5
+		robogirl.alternate[1].pixeloffset = {}
+			robogirl.alternate[1].pixeloffset.x = 0
+			robogirl.alternate[1].pixeloffset.y = 0
+
+
+all_characters = {soldier24, filthmouse, rainhorse, spiderlady, grace, bowman, harvester, robogirl}
 
 ------------------------------------init functions-----------------------------------
 -----------------------------------------------------------------------------------
 function make_player()
-	temp_entity = copy(bowman)
+	temp_entity = copy(robogirl)
 	temp_entity.team = "team1"
 	for key,val in pairs(temp_entity.primary) do
 		val.parent = "team1"
@@ -535,11 +716,17 @@ function ai_attack_behavior(entity)
 				entity.alternateshottimer = val.firedelay
 				make_projectile(entity, val)
 			end
-			if entity.character == "rainhorse" then
+			if entity.character == "rainhorse" or entity.character == "robogirl" then
 				entity.shielded = true
 			end
+			if entity.character == "harvester" then
+				if entity.spriteflip.x then
+					entity.pos.x -= 64
+				else
+					entity.pos.x += 64
+				end
+			end
 		end
-
 	elseif entity.attack_behavior == "cycle" then
 		--counter
 		entity.shottimer -= 1
@@ -556,13 +743,18 @@ function ai_attack_behavior(entity)
 					entity.alternateshottimer = val.firedelay
 					make_projectile(entity, val)
 				end
-				if entity.character == "rainhorse" then
+				if entity.character == "rainhorse" or entity.character == "robogirl" then
 					entity.shielded = true
+				end
+				if entity.character == "harvester" then
+					if entity.spriteflip.x then
+						entity.pos.x -= 64
+					else
+						entity.pos.x += 64
+					end
 				end
 			end
 		end
-
-
 	end
 end
 
@@ -864,6 +1056,9 @@ function _draw()
 
 	--gui
 	print(game.score.team1.."-"..game.score.team2, cam.pos.x, cam.pos.y)
+	if player_entities[1] then
+		print(player_entities[1].character, cam.pos.x+50, cam.pos.y)
+	end
 
 	--map
 	draw_map()
@@ -873,7 +1068,7 @@ function _draw()
 		draw_entity(entity)
 		draw_health_bar(entity)
 
-		if entity.character == "rainhorse" then
+		if entity.character == "rainhorse" or entity.character == "robogirl" then
 			entity.shielded = false
 		end
 	end
@@ -884,7 +1079,7 @@ function _draw()
 		draw_health_bar(entity)
 
 		--resets
-		if entity.character == "rainhorse" then
+		if entity.character == "rainhorse" or entity.character == "robogirl" then
 			entity.shielded = false
 		end
 	end
@@ -957,8 +1152,16 @@ function _draw()
 					make_projectile(entity, val)
 				end
 
-				if entity.character == "rainhorse" then
+				if entity.character == "rainhorse" or entity.character == "robogirl" then
 					entity.shielded = true
+				end
+
+				if entity.character == "harvester" then
+					if entity.spriteflip.x then
+						entity.pos.x -= 64
+					else
+						entity.pos.x += 64
+					end
 				end
 			end
 		end
@@ -967,22 +1170,22 @@ end
 
 
 __gfx__
-066f0000066f0000066f000095500000c1660000225500002255000022550000777777660cc00000000000000000000000000000000000000000000000000000
-06f8000006f8000006f8000000000000c15500002258000022580000225800000000000050050000000000000000000000000000000000000000000000000000
-01150000011500000115000000000000000000002e6666662e6666662e6666660000000000000000000000000000000000000000000000000000000000000000
-0cc666660cc666660cc6666600000000000000002e5650002e5650002e5650000000000000000000000000000000000000000000000000000000000000000000
-0c1156000c1156000c1156000000000000000000055e0000055e0000055e00000000000000000000000000000000000000000000000000000000000000000000
-055500000555000005550000000000000000000006e6000006e6000006e600000000000000000000000000000000000000000000000000000000000000000000
-05050000050500000505000000000000000000000505000005050000050500000000000000000000000000000000000000000000000000000000000000000000
-06060000600600000660000000000000000000000505000050050000055000000000000000000000000000000000000000000000000000000000000000000000
-00000600000006000000060006600000c0000000770a9a00770a9a00000a9a0009000000a9000000000000000000000000000000000000000000000000000000
-00066600000666000006660000665000c0000000a779af00a779af007709af00aa99999900000000000000000000000000000000000000000000000000000000
-06065a0606065a0606065a0600656500c00000000a7afe050a7afe05a77afe050900000000000000000000000000000000000000000000000000000000000000
-06665566066655660666556606505000c000000000a6665000a666500a7666500000000000000000000000000000000000000000000000000000000000000000
-05666665056666650566666565000000c0000000000775700007757000a775700000000000000000000000000000000000000000000000000000000000000000
-005f560f005f560f005f560f50000000c00000000006560000065600000656000000000000000000000000000000000000000000000000000000000000000000
-00056500000565000005650000000000c00000000005060000050600000506000000000000000000000000000000000000000000000000000000000000000000
-00050500005005000005500000000000c00000000006060000606000006060000000000000000000000000000000000000000000000000000000000000000000
+066f0000066f0000066f000095500000c1660000225500002255000022550000777777660cc00000005550000055500000555000200000000800800800000000
+06f8000006f8000006f8000000000000c15500002258000022580000225800000000000050050000005570000055700000557000000000002802802800000000
+01150000011500000115000000000000000000002e6666662e6666662e666666000000000000000005557f5505557f5505557f55000000008028028200000000
+0cc666660cc666660cc6666600000000000000002e5650002e5650002e5650000000000000000000056550000565500005655000000000002222222200000000
+0c1156000c1156000c1156000000000000000000055e0000055e0000055e0000000000000000000005666f5505666f5505666f55000000000000000000000000
+055500000555000005550000000000000000000006e6000006e6000006e600000000000000000000051115005511150055111500000000000000000000000000
+05050000050500000505000000000000000000000505000005050000050500000000000000000000051510005510100055101000000000000000000000000000
+06060000600600000660000000000000000000000505000050050000055000000000000000000000051510005100100050110000000000000000000000000000
+00000600000006000000060006600000c0000000770a9a00770a9a00000a9a0009000000a900000000eeee0000eeee0000eeee00a0000000cc0c0c0000000000
+00066600000666000006660000665000c0000000a779af00a779af007709af00aa999999000000000eeeeee50eeeeee50eeeeee5000000000d00000000000000
+06065a0606065a0606065a0600656500c00000000a7afe050a7afe05a77afe050900000000000000eeee2cc0eeee2cc0eeee2cc000000000cccc0c0c00000000
+06665566066655660666556606505000c000000000a6665000a666500a76665000000000000000005e2255555e2255555e22555500000000d00d000000000000
+05666665056666650566666565000000c0000000000775700007757000a77570000000000000000000ee2200aee0220090ee200000000000ccccc0c000000000
+005f560f005f560f005f560f50000000c00000000006560000065600000656000000000000000000000ee22000ee0220000ee200000000000000000000000000
+00056500000565000005650000000000c0000000000506000005060000050600000000000000000000ee22000ee0220000ee2000000000000000000000000000
+00050500005005000005500000000000c0000000000606000060600000606000000000000000000000e020000e00200000e20000000000000000000000000000
 00a9a90000a9a90000a9a900090000000880000005a5500005a5500005a550005666700056667000000000000000000000000000000000000000000000000000
 000aff00000aff00000aff009890000055550000005ff060005ff060005ff0600000000000000000000000000000000000000000000000000000000000000000
 060ff700060ff700060ff7000900000000000000075fe006075fe006075fe0060000000056667000000000000000000000000000000000000000000000000000
