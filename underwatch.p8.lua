@@ -43,7 +43,7 @@ projectiles = {}
 phys = {}
 phys.drag = {1.05,1.05}
 phys.bounce = {0.1,0.1}
-phys.gravity = {0,-0.5}
+phys.gravity = {0,-0.35}
 phys.ground_height = 8
 phys.time = 0
 
@@ -164,7 +164,7 @@ filthmouse.primary = {}
 	filthmouse.primary[1] = {}
 		filthmouse.primary[1].parent = ""
 		filthmouse.primary[1].sprite = 35
-		filthmouse.primary[1].mass = 0.25
+		filthmouse.primary[1].mass = 1
 		filthmouse.primary[1].maxage = 25
 		filthmouse.primary[1].bounce = true
 		filthmouse.primary[1].damage = 3
@@ -200,8 +200,8 @@ filthmouse.alternate = {}
 ------------------rainhorse----------------------
 rainhorse = copy(char_template)
 rainhorse.character = "rainhorse"
-rainhorse.mass = 2
-rainhorse.speed *= 0.5
+rainhorse.mass = 1
+rainhorse.speed *= 0.75
 rainhorse.hp = 15
 rainhorse.maxhp = 15
 rainhorse.animations = {}
@@ -214,7 +214,7 @@ rainhorse.primary = {}
 		rainhorse.primary[1].sprite = 19
 		rainhorse.primary[1].mass = 0.25
 		rainhorse.primary[1].maxage = 2
-		rainhorse.primary[1].bounce = false
+		rainhorse.primary[1].bounce = true
 		rainhorse.primary[1].damage = 1
 		rainhorse.primary[1].firedelay = 15 --draw frames between shots
 		rainhorse.primary[1].velocity = {}
@@ -232,7 +232,7 @@ rainhorse.alternate = {}
 		rainhorse.alternate[1].sprite = 20
 		rainhorse.alternate[1].mass = 1
 		rainhorse.alternate[1].maxage = 2
-		rainhorse.alternate[1].bounce = false
+		rainhorse.alternate[1].bounce = true
 		rainhorse.alternate[1].damage = 0
 		rainhorse.alternate[1].firedelay = 0 --draw frames between shots
 		rainhorse.alternate[1].velocity = {}
@@ -462,6 +462,7 @@ function make_projectile(entity, projectile)
 	temp_proj.pos = {}
 	temp_proj.age = 0
 	temp_proj.spriteflip = {}
+	temp_proj.velocity.x += entity.velocity.x
 	if entity.spriteflip.x == true then
 		temp_proj.spriteflip.x = true
 		temp_proj.velocity.x = temp_proj.velocity.x*-1
@@ -624,7 +625,7 @@ function apply_drag(entity)
 	entity.velocity.y /= phys.drag[2]
 end
 
-function apply_solid_body_collision(entity)
+function apply_entity_map_collision(entity)
 	top = {flr((entity.pos.x+(entity.sca.x/2))/8), flr(entity.pos.y/8)}
 	bottom = {top[1], flr((entity.pos.y+(entity.sca.y-1))/8)}
 	left = {flr(entity.pos.x/8), flr((entity.pos.y+(entity.sca.y/2))/8)}
@@ -636,37 +637,91 @@ function apply_solid_body_collision(entity)
 		entity.velocity.y = 0
 		entity.mass = 0
 		entity.isjumping = false
-		entity.pos.y = (bottom[2]-1)*8 -- make sure the entity stays within bounds
+		entity.pos.y = flr((bottom[2]-1)*8) -- make sure the entity stays within bounds
 		return
 	else
 		entity.isjumping = true
 		entity.mass = 1
 	end
 
+	--top
+	val = mget(top[1]+currmap.cel.x, top[2]+currmap.cel.y)
+	if fget(val, 7) == true then
+		entity.velocity.y *= -phys.bounce[2]
+		entity.pos.y = flr((top[2]+1)*8) -- make sure the entity stays within bounds
+	end
+
 	--left
 	val = mget(left[1]+currmap.cel.x, left[2]+currmap.cel.y)
 	if fget(val, 7) == true then
 		entity.velocity.x *= -phys.bounce[1]
-		entity.pos.x = (left[1]+1)*8 -- make sure the entity stays within bounds
-		return
+		entity.pos.x = flr((left[1]+1)*8) -- make sure the entity stays within bounds
 	end
 
 	--right
 	val = mget(right[1]+currmap.cel.x, right[2]+currmap.cel.y)
 	if fget(val, 7) == true then
 		entity.velocity.x *= -phys.bounce[1]
-		entity.pos.x = (right[1]-1)*8 -- make sure the entity stays within bounds
+		entity.pos.x = flr((right[1]-1)*8) -- make sure the entity stays within bounds
+	end
+
+
+end
+
+
+function apply_projectile_map_collision(bullet)
+	top = {flr((bullet.pos.x+(bullet.sca.x/2))/8), flr(bullet.pos.y/8)}
+	bottom = {top[1], flr((bullet.pos.y+(bullet.sca.y-1))/8)}
+	left = {flr(bullet.pos.x/8), flr((bullet.pos.y+(bullet.sca.y/2))/8)}
+	right = {flr((bullet.pos.x+(bullet.sca.x-1))/8), left[2]}
+	
+	--bottom
+	val = mget(bottom[1]+currmap.cel.x, bottom[2]+currmap.cel.y)
+	if fget(val, 7) == true then
+		if bullet.bounce then
+			bullet.velocity.y *= -phys.bounce[1]
+		else
+			del(projectiles, bullet)
+		end
+		bullet.pos.y = (bottom[2]-1)*8 -- make sure the bullet stays within bounds
+		return
+	end
+
+	--left
+	val = mget(left[1]+currmap.cel.x, left[2]+currmap.cel.y)
+	if fget(val, 7) == true then
+		if bullet.bounce then
+			bullet.velocity.x *= -phys.bounce[1]
+		else
+			del(projectiles, bullet)
+		end
+		bullet.pos.x = (left[1]+1)*8 -- make sure the bullet stays within bounds
+		return
+	end
+
+	--right
+	val = mget(right[1]+currmap.cel.x, right[2]+currmap.cel.y)
+	if fget(val, 7) == true then
+		if bullet.bounce then
+			bullet.velocity.x *= -phys.bounce[1]
+		else
+			del(projectiles, bullet)
+		end
+		bullet.pos.x = (right[1]-1)*8 -- make sure the bullet stays within bounds
 		return
 	end
 
 	--top
 	val = mget(top[1]+currmap.cel.x, top[2]+currmap.cel.y)
 	if fget(val, 7) == true then
-		entity.velocity.y *= -phys.bounce[2]
-		entity.pos.y = (top[2]+1)*8 -- make sure the entity stays within bounds
+		if bullet.bounce then
+			bullet.velocity.y *= -phys.bounce[2]
+		else
+			del(projectiles, bullet)
+		end
+		bullet.pos.y = (top[2]+1)*8 -- make sure the bullet stays within bounds
 		return
 	end
-
 end
 
 function projectile_collision(entity)
@@ -762,8 +817,8 @@ function _update()
 		ai_attack_behavior(entity)
 		apply_gravity(entity)
 		apply_velocity(entity)
-		apply_solid_body_collision(entity)
 		apply_drag(entity)
+		apply_entity_map_collision(entity)
 		projectile_collision(entity)
 		set_animation_frame(entity)
 	end
@@ -775,8 +830,8 @@ function _update()
 		entity.target = ai_get_target(entity)
 		apply_gravity(entity)
 		apply_velocity(entity)
-		apply_solid_body_collision(entity)
 		apply_drag(entity)
+		apply_entity_map_collision(entity)
 		projectile_collision(entity)
 		set_animation_frame(entity)
 	end
@@ -786,9 +841,7 @@ function _update()
 		cleanup(entity, projectiles)
 		apply_gravity(entity)
 		apply_velocity(entity)
-		if entity.bounce then
-			apply_solid_body_collision(entity)
-		end
+		apply_projectile_map_collision(entity)
 		entity.age += 1
 		if entity.age >= entity.maxage then
 			del(projectiles, entity)
