@@ -2,7 +2,6 @@
 Underwatch is an objective based team shooter demake coded in lua.
 
 Underwatch is an objective based team shooter demake coded in lua for Pico-8.
-[url=https://github.com/n33kos/underwatch]Fork Underwatch On Github[/url]
 
 Any resemblance to existing copyrighted material is purely coincidental and unintentional. ;D
 
