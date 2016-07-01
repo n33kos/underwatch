@@ -2,40 +2,8 @@ pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
 
------------------------------------helper functions--------------------------------
------------------------------------------------------------------------------------
-function copy(o)
-	local c
-	if type(o) == 'table' then
-		c = {}
-		for k, v in pairs(o) do
-		c[k] = copy(v)
-		end
-	else
-		c = o
-	end
-	return c
-end
-
-function cleanup(entity)
-	cleanuplimit = 2047
-	for k, v in pairs(entity) do
-		if type(v) == 'table' then
-			for k2, v2 in pairs(v) do
-				if type(v2) == "number" and (v2 > cleanuplimit or v2 < -cleanuplimit) then
-					entity.hp = 0
-				end
-			end
-		else
-			if type(v) == "number" and (v > cleanuplimit or v < -cleanuplimit) then
-				entity.hp = 0
-			end
-		end
-	end
-end
-
----------------------------------------globals-------------------------------------
------------------------------------------------------------------------------------
+--globals-------------------------------------
+----------------------------------------------
 ai_entities = {}
 player_entities = {}
 projectiles = {}
@@ -74,8 +42,704 @@ game.score = {}
 game.score.team1 = 0
 game.score.team2 = 0
 
----------------------------------------characters---------------------------------
------------------------------------------------------------------------------------
+--creation functions-----------------------------------
+---------------------------------------------------
+function make_player()
+	temp_entity = copy(zohan)
+	temp_entity.team = "team1"
+	for key,val in pairs(temp_entity.primary) do
+		val.parent = "team1"
+		if type(val.explode) == "table" then
+			for key2,val2 in pairs(val.explode) do
+				val2.parent = "team1"
+			end
+		end
+	end
+	for key,val in pairs(temp_entity.alternate) do
+		val.parent = "team1"
+		if type(val.explode) == "table" then
+			for key2,val2 in pairs(val.explode) do
+				val2.parent = "team1"
+			end
+		end
+	end
+	spawn = find_spawn_point(temp_entity)
+	temp_entity.pos.x = spawn[1]
+	temp_entity.pos.y = spawn[2]
+	add(player_entities, temp_entity)
+	cam.target = temp_entity
+end
+
+function make_ai()
+	--team 1
+	for i=1,6 do
+		temp_entity = copy(all_characters[flr(rnd(#all_characters))+1])
+		temp_entity.team = "team1"
+		for key,val in pairs(temp_entity.primary) do
+			val.parent = "team1"
+			if type(val.explode) == "table" then
+				for key2,val2 in pairs(val.explode) do
+					val2.parent = "team1"
+				end
+			end
+		end
+		for key,val in pairs(temp_entity.alternate) do
+			val.parent = "team1"
+			if type(val.explode) == "table" then
+				for key2,val2 in pairs(val.explode) do
+					val2.parent = "team1"
+				end
+			end
+		end
+		spawn = find_spawn_point(temp_entity)
+		temp_entity.pos.x = spawn[1]
+		temp_entity.pos.y = spawn[2]
+		add(ai_entities, temp_entity)
+	end
+	--team 2
+	for i=1,6 do
+		temp_entity = copy(all_characters[flr(rnd(#all_characters))+1])
+		temp_entity.team = "team2"
+		for key,val in pairs(temp_entity.primary) do
+			val.parent = "team2"
+			if type(val.explode) == "table" then
+				for key2,val2 in pairs(val.explode) do
+					val2.parent = "team2"
+				end
+			end
+		end
+		for key,val in pairs(temp_entity.alternate) do
+			val.parent = "team2"
+			if type(val.explode) == "table" then
+				for key2,val2 in pairs(val.explode) do
+					val2.parent = "team2"
+				end
+			end
+		end
+		spawn = find_spawn_point(temp_entity)
+		temp_entity.pos.x = spawn[1]
+		temp_entity.pos.y = spawn[2]
+		add(ai_entities, temp_entity)
+	end
+end
+
+function make_projectile(entity, projectile, inheritvelocity)
+	temp_proj = copy(projectile)
+	temp_proj.pos = {}
+	temp_proj.age = 0
+	temp_proj.spriteflip = {}
+	if inheritvelocity then
+		temp_proj.velocity.x += entity.velocity.x
+	end
+	if entity.spriteflip.x == true then
+		temp_proj.spriteflip.x = true
+		temp_proj.velocity.x = temp_proj.velocity.x*-1
+		temp_proj.pos.x = entity.pos.x-temp_proj.sca.x-temp_proj.pixeloffset.x
+	else
+		temp_proj.pos.x = entity.pos.x+entity.sca.x+temp_proj.pixeloffset.x
+	end
+	temp_proj.pos.y = entity.pos.y+temp_proj.pixeloffset.y
+
+	add(projectiles, temp_proj)
+end
+
+function find_spawn_point(entity)
+	points = {}
+	for i=0,currmap.dim.x do
+		for j=0,currmap.dim.y do
+			val = {i*8,j*8}
+			cell = mget(val[1]/8,val[2]/8)
+			if entity.team == "team1" then
+				if fget(cell, 4) then
+					add(points, val)
+				end
+			else
+				if fget(cell, 5) then
+					add(points, val)
+				end
+			end
+		end
+	end
+	return points[flr(rnd(#points))+1]
+end
+
+--ai functions-------------------------------------
+---------------------------------------------------
+function ai_movement_behavior(entity)
+	if entity.movement_behavior == "random" then
+		if rnd(2) > 1 then
+			entity.velocity.x += rnd(entity.speed)
+		else
+			entity.velocity.x -= rnd(entity.speed)
+		end
+
+		if rnd(10) < 0.25 and entity.isjumping != true then
+			entity.velocity.y -= rnd(entity.jumpheight)
+		end
+		entity.current_animation = "walk"
+	elseif entity.movement_behavior == "follow" then
+		if entity.target then
+			if entity.target.pos.x > entity.pos.x then
+				entity.velocity.x += rnd(entity.speed)+rnd(entity.speed)
+			else
+				entity.velocity.x -= rnd(entity.speed)+rnd(entity.speed)
+			end
+			if entity.isjumping != true and (rnd(10) < 1 or (entity.velocity.x < 0.2 and entity.velocity.x > -0.2)) then
+				entity.velocity.y -= rnd(entity.jumpheight)
+			end
+		end
+		entity.current_animation = "walk"
+	else
+		entity.current_animation = "idle"
+	end
+
+	if entity.velocity.x > 0 then
+		entity.spriteflip.x = false
+	elseif entity.velocity.x < 0 then
+		entity.spriteflip.x = true
+	end
+end
+
+function ai_attack_behavior(entity)
+	if entity.attack_behavior == "primary" then
+		--counter
+		entity.shottimer -= 1
+
+		if entity.shottimer <= 0 then
+			for key,val in pairs(entity.primary) do
+				entity.shottimer = val.firedelay
+				make_projectile(entity, val, true)
+			end
+		end
+	elseif entity.attack_behavior == "alternate" then
+		--counter
+		entity.alternateshottimer -= 1
+
+		if entity.alternateshottimer <= 0 then
+			for key,val in pairs(entity.alternate) do
+				entity.alternateshottimer = val.firedelay
+				make_projectile(entity, val, true)
+			end
+			if entity.character == "rainhorse" or entity.character == "robogirl" then
+				entity.shielded = true
+			end
+			if entity.character == "harvester" then
+				if entity.spriteflip.x then
+					entity.pos.x -= 64
+				else
+					entity.pos.x += 64
+				end
+			end
+		end
+	elseif entity.attack_behavior == "cycle" then
+		--counter
+		entity.shottimer -= 1
+		entity.alternateshottimer -= 1
+		if rnd(10) < 5 then
+			if entity.shottimer <= 0 and phys.time%2 == 0 then
+				for key,val in pairs(entity.primary) do
+					entity.shottimer = val.firedelay
+					make_projectile(entity, val, true)
+				end
+			end
+			if entity.alternateshottimer <= 0 and phys.time%2 == 1 then
+				for key,val in pairs(entity.alternate) do
+					entity.alternateshottimer = val.firedelay
+					make_projectile(entity, val, true)
+				end
+				if entity.character == "rainhorse" or entity.character == "robogirl" then
+					entity.shielded = true
+				end
+				if entity.character == "harvester" then
+					if entity.spriteflip.x then
+						entity.pos.x -= 64
+					else
+						entity.pos.x += 64
+					end
+				end
+			end
+		end
+	end
+end
+
+function ai_get_target(entity)
+	--then ai
+	otherteam = {}
+	for key,otherentity in pairs(ai_entities) do
+		if entity.character == "grace" then
+			if otherentity.team == entity.team then
+				add(otherteam, otherentity)
+			end
+		else
+			if otherentity.team != entity.team then
+				add(otherteam, otherentity)
+			end
+		end
+
+	end
+	return otherteam[flr(rnd(#otherteam))+1]
+end
+
+--phys functions-----------------------------------
+------------------------------------------------------
+function apply_gravity(entity)
+	entity.velocity.y = entity.velocity.y-phys.gravity[2]*entity.mass
+end
+
+function apply_velocity(entity)
+	entity.pos.x = entity.pos.x+entity.velocity.x
+	entity.pos.y = entity.pos.y+entity.velocity.y
+end
+
+function apply_drag(entity)
+	entity.velocity.x /= phys.drag[1]
+	entity.velocity.y /= phys.drag[2]
+end
+
+function apply_entity_map_collision(entity)
+	top = {flr((entity.pos.x+(entity.sca.x/2))/8), flr(entity.pos.y/8)}
+	bottom = {top[1], flr((entity.pos.y+(entity.sca.y-1))/8)}
+	left = {flr(entity.pos.x/8), flr((entity.pos.y+(entity.sca.y/2))/8)}
+	right = {flr((entity.pos.x+(entity.sca.x-1))/8), left[2]}
+	
+	--bottom
+	val = mget(bottom[1]+currmap.cel.x, bottom[2]+currmap.cel.y)
+	if fget(val, 7) == true then
+		entity.velocity.y = 0
+		entity.mass = 0
+		entity.isjumping = false
+		entity.pos.y = flr((bottom[2]-1)*8) -- make sure the entity stays within bounds
+		return
+	else
+		entity.isjumping = true
+		entity.mass = 1
+	end
+
+	--top
+	val = mget(top[1]+currmap.cel.x, top[2]+currmap.cel.y)
+	if fget(val, 7) == true then
+		entity.velocity.y *= -phys.bounce[2]
+		entity.pos.y = flr((top[2]+1)*8) -- make sure the entity stays within bounds
+	end
+
+	--left
+	val = mget(left[1]+currmap.cel.x, left[2]+currmap.cel.y)
+	if fget(val, 7) == true then
+		entity.velocity.x *= -phys.bounce[1]
+		entity.pos.x = flr((left[1]+1)*8) -- make sure the entity stays within bounds
+	end
+
+	--right
+	val = mget(right[1]+currmap.cel.x, right[2]+currmap.cel.y)
+	if fget(val, 7) == true then
+		entity.velocity.x *= -phys.bounce[1]
+		entity.pos.x = flr((right[1]-1)*8) -- make sure the entity stays within bounds
+	end
+end
+
+function apply_projectile_map_collision(bullet)
+	if bullet.bounce then
+		top = {flr((bullet.pos.x+(bullet.sca.x/2))/8), flr(bullet.pos.y/8)}
+		bottom = {top[1], flr((bullet.pos.y+(bullet.sca.y-1))/8)}
+		left = {flr(bullet.pos.x/8), flr((bullet.pos.y+(bullet.sca.y/2))/8)}
+		right = {flr((bullet.pos.x+(bullet.sca.x-1))/8), left[2]}
+		
+		--bottom
+		val = mget(bottom[1]+currmap.cel.x, bottom[2]+currmap.cel.y)
+		if fget(val, 7) == true then
+			if bullet.bounce then
+				bullet.velocity.y *= -phys.bounce[1]
+			end
+			bullet.pos.y = (bottom[2]-1)*8 -- make sure the bullet stays within bounds
+		end
+
+		--left
+		val = mget(left[1]+currmap.cel.x, left[2]+currmap.cel.y)
+		if fget(val, 7) == true then
+			bullet.pos.x = (left[1]+1)*8 -- make sure the bullet stays within bounds
+		end
+
+		--right
+		val = mget(right[1]+currmap.cel.x, right[2]+currmap.cel.y)
+		if fget(val, 7) == true then
+			if bullet.bounce then
+				bullet.velocity.x *= -phys.bounce[1]
+			end
+			bullet.pos.x = (right[1]-1)*8 -- make sure the bullet stays within bounds
+		end
+
+		--top
+		val = mget(top[1]+currmap.cel.x, top[2]+currmap.cel.y)
+		if fget(val, 7) == true then
+			if bullet.bounce then
+				bullet.velocity.y *= -phys.bounce[2]
+			end
+			bullet.pos.y = (top[2]+1)*8 -- make sure the bullet stays within bounds
+		end
+	else
+		val = mget(flr(bullet.pos.x/8), flr(bullet.pos.y/8))
+		if fget(val, 7) == true then
+			if type(bullet.explode) == "table" then
+				for key,val in pairs(bullet.explode) do
+					make_projectile(bullet, val)
+				end
+			end
+			del(projectiles, bullet)
+			return
+		end
+	end
+end
+
+function apply_ladder_collision(entity)
+	val = mget(flr((entity.pos.x+entity.sca.x/2)/8), flr((entity.pos.y+entity.sca.y/2)/8))
+	if fget(val, 6) == true then
+		entity.onladder = true
+		entity.velocity.y -= 0.5
+		entity.isjumping = false
+	else
+		entity.onladder = false
+	end
+end
+
+function apply_projectile_entity_collision(entity)
+	for key,bullet in pairs(projectiles) do
+		c = bullet.pos.x;
+		d = bullet.pos.y;
+		a = c+bullet.sca.x;
+		b = d+bullet.sca.y;
+
+		y = entity.pos.x;
+		z = entity.pos.y;
+		w = y+entity.sca.x;
+		x = z+entity.sca.y;
+
+		intersect = true
+		if(a<w and c<w and a<y and c<y) intersect = false
+		if(a>w and c>w and a>y and c>y) intersect = false
+		if(b<x and d<x and b<z and d<z) intersect = false
+		if(b>x and d>x and b>z and d>z) intersect = false
+		if intersect and entity.ismortal and entity.shielded == false and bullet.damage != nil and ((bullet.damage > 0 and bullet.parent != entity.team) or (bullet.damage < 0 and bullet.parent == entity.team)) then
+			if type(bullet.explode) == "table" then
+				for key,val in pairs(bullet.explode) do
+					make_projectile(bullet, val)
+				end
+			end
+			entity.hp -= bullet.damage
+			del(projectiles, bullet)
+		end
+	end
+end
+
+--drawing functions-----------------------------------
+------------------------------------------------------
+function draw_entity(entity)
+	spr(entity.sprite, entity.pos.x, entity.pos.y, entity.sca.x/8, entity.sca.y/8, entity.spriteflip.x, entity.spriteflip.y)
+end
+
+function draw_map()
+	map(currmap.cel.x, currmap.cel.y, currmap.s.x, currmap.s.y, currmap.dim.x, currmap.dim.y)
+end
+
+function move_camera()
+	if cam.target then
+		cam.pos.x = cam.pos.x + (cam.target.pos.x - (cam.pos.x+cam.offset.x))/cam.followdistance.x
+		cam.pos.y = cam.pos.y + (cam.target.pos.y - (cam.pos.y+cam.offset.y))/cam.followdistance.y
+	end
+	camera(cam.pos.x,cam.pos.y)
+end
+
+function set_animation_frame(entity)
+	--select animation based on movement
+	if entity.isjumping and entity.velocity.y < 0 then
+		entity.current_animation = "jump"
+	elseif entity.velocity.x > 0.2 or entity.velocity.x < -0.2 then
+		entity.current_animation = "walk"
+	else
+		entity.current_animation = "idle"
+	end
+
+	--assign animation frame to draw sprite. animation frames use phys.time modulus the length of the animation
+	if entity.current_animation == "idle" then
+		entity.sprite = entity.animations.idle[phys.time % #entity.animations.idle+1]
+	end
+	if entity.current_animation == "walk" then
+		entity.sprite = entity.animations.walk[phys.time % #entity.animations.walk+1]
+	end
+	if entity.current_animation == "jump" then
+		entity.sprite = entity.animations.jump[phys.time % #entity.animations.jump+1]
+	end
+end
+
+function draw_health_bar(entity)
+	if entity.team == "team1" then
+		colors = {1,12}
+	else
+		colors = {2,8}
+	end
+	line(entity.pos.x, entity.pos.y-7, entity.pos.x+entity.sca.x, entity.pos.y-7, colors[1])
+	line(entity.pos.x, entity.pos.y-7, entity.pos.x+((entity.hp/entity.maxhp)*entity.sca.x), entity.pos.y-7, colors[2])
+end
+
+--game functions-----------------------------------
+---------------------------------------------------
+function assess_hp(entity, table)
+	if entity.hp <= 0 then
+		--temporary fun forever fight behavior!-----
+		--replace me with actual respawn logic later plezz
+		team = entity.team
+		tmp = copy(all_characters[flr(rnd(#all_characters))+1])
+		tmp.team = team
+		spawn = find_spawn_point(tmp)
+		tmp.pos.x = spawn[1]
+		tmp.pos.y = spawn[2]
+		for key,projectile in pairs(tmp.primary) do
+			projectile.parent = team
+		end
+		for key,projectile in pairs(tmp.alternate) do
+			projectile.parent = team
+		end
+		add(ai_entities, tmp)
+		------------------------------------
+
+		if team == "team1" then
+			game.score.team2 += 1
+		else
+			game.score.team1 += 1
+		end
+		del(table, entity)
+	elseif entity.hp > entity.maxhp then
+		entity.hp = entity.maxhp
+	end
+end
+
+
+--helper functions----------------------------
+----------------------------------------------
+function copy(o)
+	local c
+	if type(o) == 'table' then
+		c = {}
+		for k, v in pairs(o) do
+		c[k] = copy(v)
+		end
+	else
+		c = o
+	end
+	return c
+end
+
+function cleanup(entity)
+	cleanuplimit = 2047
+	for k, v in pairs(entity) do
+		if type(v) == 'table' then
+			for k2, v2 in pairs(v) do
+				if type(v2) == "number" and (v2 > cleanuplimit or v2 < -cleanuplimit) then
+					entity.hp = 0
+				end
+			end
+		else
+			if type(v) == "number" and (v > cleanuplimit or v < -cleanuplimit) then
+				entity.hp = 0
+			end
+		end
+	end
+end
+
+
+--execution---------------------------------------
+--------------------------------------------------
+function _init()
+	cls()
+	make_player()
+	make_ai()
+end
+
+function _update()
+	--ai entities
+	for key,entity in pairs(ai_entities) do
+		cleanup(entity)
+		assess_hp(entity, ai_entities)
+		if entity.target == nil or type(entity.target) != "table" or entity.target == false then
+			entity.target = ai_get_target(entity)
+		end
+		ai_movement_behavior(entity)
+		ai_attack_behavior(entity)
+		if entity.onladder == false then
+			apply_gravity(entity)
+		end
+		apply_velocity(entity)
+		apply_drag(entity)
+		apply_entity_map_collision(entity)
+		apply_ladder_collision(entity)
+		apply_projectile_entity_collision(entity)
+		set_animation_frame(entity)
+	end
+
+	--player entities
+	for key,entity in pairs(player_entities) do
+		cleanup(entity)
+		assess_hp(entity, player_entities)
+		if entity.target == nil or type(entity.target) != "table" or entity.target == false then
+			entity.target = ai_get_target(entity)
+		end
+		if entity.onladder == false then
+			apply_gravity(entity)
+		end
+		apply_velocity(entity)
+		apply_drag(entity)
+		apply_entity_map_collision(entity)
+		apply_ladder_collision(entity)
+		apply_projectile_entity_collision(entity)
+		set_animation_frame(entity)
+	end
+
+	--projectiles
+	for key,entity in pairs(projectiles) do
+		cleanup(entity)
+		apply_gravity(entity)
+		apply_velocity(entity)
+		apply_projectile_map_collision(entity)
+		entity.age += 1
+		if entity.age >= entity.maxage then
+			if type(entity.explode) == "table" then
+				for key,val in pairs(entity.explode) do
+					make_projectile(entity, val)
+				end
+			end
+			del(projectiles, entity)
+		end
+	end
+
+end
+
+function _draw()
+	cls()
+	phys.time += 1
+
+	--camera
+	if #player_entities > 0 then
+		cam.target = player_entities[1]
+	elseif #ai_entities > 0 then
+		cam.target = ai_entities[2]
+	end
+	move_camera()
+
+	--map
+	draw_map()
+
+	--ai entities
+	for key,entity in pairs(ai_entities) do
+		draw_entity(entity)
+		draw_health_bar(entity)
+
+		if entity.character == "rainhorse" or entity.character == "robogirl" then
+			entity.shielded = false
+		end
+	end
+
+	--player entities
+	for key,entity in pairs(player_entities) do
+		draw_entity(entity)
+		draw_health_bar(entity)
+
+		--resets
+		if entity.character == "rainhorse" or entity.character == "robogirl" then
+			entity.shielded = false
+		end
+	end
+
+	--projectiles
+	for key,entity in pairs(projectiles) do
+		draw_entity(entity)
+	end
+
+	--gui
+	print(game.score.team1.."-"..game.score.team2, cam.pos.x, cam.pos.y)
+	if player_entities[1] then
+		print(player_entities[1].character, cam.pos.x+50, cam.pos.y)
+	end
+
+	--player feedback------------------------------------
+	-----------------------------------------------------
+	if btn(0) then
+		--left
+		for key,entity in pairs(player_entities) do
+			entity.velocity.x -= entity.speed
+			entity.spriteflip.x = true
+		end
+	end
+	if btn(1) then
+		--right
+		for key,entity in pairs(player_entities) do
+			entity.velocity.x += entity.speed
+			entity.spriteflip.x = false
+		end
+	end
+	if btn(2) then
+		--up
+		for key,entity in pairs(player_entities) do
+			if entity.isjumping == false then
+				entity.velocity.y -= entity.jumpheight
+				entity.isjumping = true
+			end
+		end
+	end
+	if btn(3) then
+		--down
+	end
+	if btn(4) then
+		--take control of ai character
+		if #player_entities == 0 and #ai_entities > 0 then
+			add(player_entities, ai_entities[1])
+			del(ai_entities, ai_entities[1])
+		end
+
+		--one
+		for key,entity in pairs(player_entities) do
+			--counter
+			entity.shottimer -= 1
+	
+			--primary fire
+			if entity.shottimer <= 0 then
+				for key,val in pairs(entity.primary) do
+					entity.shottimer = val.firedelay
+					make_projectile(entity, val, true)
+				end
+			end
+
+		end
+	end
+	if btn(5) then
+		for key,entity in pairs(player_entities) do
+			--counter
+			entity.alternateshottimer -= 1
+
+			--alternate fire
+			if entity.alternateshottimer <= 0 then
+				for key,val in pairs(entity.alternate) do
+					entity.alternateshottimer = val.firedelay
+					make_projectile(entity, val, true)
+				end
+
+				if entity.character == "rainhorse" or entity.character == "robogirl" then
+					entity.shielded = true
+				end
+
+				if entity.character == "harvester" then
+					if entity.spriteflip.x then
+						entity.pos.x -= 64
+					else
+						entity.pos.x += 64
+					end
+				end
+			end
+		end
+	end
+end
+
+
+--character definitions----------------------
+---------------------------------------------
 char_template = {}
 char_template.pos = {}
 	char_template.pos.x = 0
@@ -90,7 +754,7 @@ char_template.mass = 1
 char_template.speed = 0.05
 char_template.jumpheight = 5
 char_template.isjumping = true
-char_template.onLadder = false
+char_template.onladder = false
 char_template.ismortal = true
 char_template.shielded = false
 char_template.hp = 5
@@ -141,11 +805,11 @@ soldier24.alternate = {}
 		soldier24.alternate[1].sprite = 4
 		soldier24.alternate[1].mass = 0.5
 		soldier24.alternate[1].maxage = 30
-		soldier24.alternate[1].bounce = true
+		soldier24.alternate[1].bounce = false
 		soldier24.alternate[1].damage = 3
 		soldier24.alternate[1].firedelay = 50 --draw frames between shots
 		soldier24.alternate[1].velocity = {}
-			soldier24.alternate[1].velocity.x = 10
+			soldier24.alternate[1].velocity.x = 7
 			soldier24.alternate[1].velocity.y = -0.5
 		soldier24.alternate[1].sca = {}
 			soldier24.alternate[1].sca.x = 4
@@ -153,6 +817,23 @@ soldier24.alternate = {}
 		soldier24.alternate[1].pixeloffset = {}
 			soldier24.alternate[1].pixeloffset.x = 0
 			soldier24.alternate[1].pixeloffset.y = 4
+		soldier24.alternate[1].explode = {}
+			soldier24.alternate[1].explode[1] = {}
+				soldier24.alternate[1].explode[1].sprite = 53
+				soldier24.alternate[1].explode[1].mass = 0
+				soldier24.alternate[1].explode[1].maxage = 30
+				soldier24.alternate[1].explode[1].bounce = true
+				soldier24.alternate[1].explode[1].damage = 1
+				soldier24.alternate[1].explode[1].firedelay = 50 --draw frames between shots
+				soldier24.alternate[1].explode[1].velocity = {}
+					soldier24.alternate[1].explode[1].velocity.x = rnd(2)*-rnd(1)
+					soldier24.alternate[1].explode[1].velocity.y = phys.gravity[2]
+				soldier24.alternate[1].explode[1].sca = {}
+					soldier24.alternate[1].explode[1].sca.x = 8
+					soldier24.alternate[1].explode[1].sca.y = 8
+				soldier24.alternate[1].explode[1].pixeloffset = {}
+					soldier24.alternate[1].explode[1].pixeloffset.x = 0
+					soldier24.alternate[1].explode[1].pixeloffset.y = 0
 
 ---------------filthmouse--------------
 filthmouse = {}
@@ -198,6 +879,23 @@ filthmouse.alternate = {}
 		filthmouse.alternate[1].pixeloffset = {}
 			filthmouse.alternate[1].pixeloffset.x = 0
 			filthmouse.alternate[1].pixeloffset.y = 3
+		filthmouse.alternate[1].explode = {}
+			filthmouse.alternate[1].explode[1] = {}
+				filthmouse.alternate[1].explode[1].sprite = 53
+				filthmouse.alternate[1].explode[1].mass = 0
+				filthmouse.alternate[1].explode[1].maxage = 30
+				filthmouse.alternate[1].explode[1].bounce = false
+				filthmouse.alternate[1].explode[1].damage = 1
+				filthmouse.alternate[1].explode[1].firedelay = 50 --draw frames between shots
+				filthmouse.alternate[1].explode[1].velocity = {}
+					filthmouse.alternate[1].explode[1].velocity.x = rnd(2)*-rnd(1)
+					filthmouse.alternate[1].explode[1].velocity.y = phys.gravity[2]
+				filthmouse.alternate[1].explode[1].sca = {}
+					filthmouse.alternate[1].explode[1].sca.x = 8
+					filthmouse.alternate[1].explode[1].sca.y = 8
+				filthmouse.alternate[1].explode[1].pixeloffset = {}
+					filthmouse.alternate[1].explode[1].pixeloffset.x = 0
+					filthmouse.alternate[1].explode[1].pixeloffset.y = 0
 
 ------------------rainhorse----------------------
 rainhorse = {}
@@ -282,7 +980,7 @@ spiderlady.alternate = {}
 	spiderlady.alternate[1] = {}
 		spiderlady.alternate[1].parent = ""
 		spiderlady.alternate[1].sprite = 9
-		spiderlady.alternate[1].mass = 0.1
+		spiderlady.alternate[1].mass = 1
 		spiderlady.alternate[1].maxage = 10
 		spiderlady.alternate[1].bounce = true
 		spiderlady.alternate[1].damage = 2
@@ -347,71 +1045,87 @@ grace.alternate = {}
 			grace.alternate[1].pixeloffset.x = 0
 			grace.alternate[1].pixeloffset.y = 2
 		
---------------------------bowman----------------------
-bowman = {}
-bowman = copy(char_template)
-bowman.character = "bowman"
-bowman.jumpheight = 5
-bowman.hp = 5
-bowman.maxhp = 5
-bowman.mass = 0.1
-bowman.animations = {}
-	bowman.animations.idle = {37}
-	bowman.animations.walk = {38,38,38,38,39,39,39,39}
-	bowman.animations.jump = {38}
-bowman.primary = {}
-	bowman.primary[1] = {}
-		bowman.primary[1].parent = ""
-		bowman.primary[1].sprite = 40
-		bowman.primary[1].mass = 1
-		bowman.primary[1].maxage = 40
-		bowman.primary[1].bounce = false
-		bowman.primary[1].damage = 5
-		bowman.primary[1].firedelay = 40 --draw frames between shots
-		bowman.primary[1].velocity = {}
-			bowman.primary[1].velocity.x = 5
-			bowman.primary[1].velocity.y = -4
-		bowman.primary[1].sca = {}
-			bowman.primary[1].sca.x = 5
-			bowman.primary[1].sca.y = 1
-		bowman.primary[1].pixeloffset = {}
-			bowman.primary[1].pixeloffset.x = 0
-			bowman.primary[1].pixeloffset.y = 3
-bowman.alternate = {}
-	bowman.alternate[1] = {}
-		bowman.alternate[1].parent = ""
-		bowman.alternate[1].sprite = 40
-		bowman.alternate[1].mass = 1
-		bowman.alternate[1].maxage = 40
-		bowman.alternate[1].bounce = false
-		bowman.alternate[1].damage = 5
-		bowman.alternate[1].firedelay = 60 --draw frames between shots
-		bowman.alternate[1].velocity = {}
-			bowman.alternate[1].velocity.x = 5
-			bowman.alternate[1].velocity.y = -4
-		bowman.alternate[1].sca = {}
-			bowman.alternate[1].sca.x = 5
-			bowman.alternate[1].sca.y = 1
-		bowman.alternate[1].pixeloffset = {}
-			bowman.alternate[1].pixeloffset.x = 0
-			bowman.alternate[1].pixeloffset.y = 3
-	bowman.alternate[2] = {}
-		bowman.alternate[2].parent = ""
-		bowman.alternate[2].sprite = 40
-		bowman.alternate[2].mass = 1
-		bowman.alternate[2].maxage = 40
-		bowman.alternate[2].bounce = false
-		bowman.alternate[2].damage = 5
-		bowman.alternate[2].firedelay = 60 --draw frames between shots
-		bowman.alternate[2].velocity = {}
-			bowman.alternate[2].velocity.x = 5
-			bowman.alternate[2].velocity.y = -3
-		bowman.alternate[2].sca = {}
-			bowman.alternate[2].sca.x = 5
-			bowman.alternate[2].sca.y = 1
-		bowman.alternate[2].pixeloffset = {}
-			bowman.alternate[2].pixeloffset.x = 0
-			bowman.alternate[2].pixeloffset.y = 3
+--------------------------zohan----------------------
+zohan = {}
+zohan = copy(char_template)
+zohan.character = "zohan"
+zohan.jumpheight = 5
+zohan.hp = 5
+zohan.maxhp = 5
+zohan.mass = 0.1
+zohan.animations = {}
+	zohan.animations.idle = {37}
+	zohan.animations.walk = {38,38,38,38,39,39,39,39}
+	zohan.animations.jump = {38}
+zohan.primary = {}
+	zohan.primary[1] = {}
+		zohan.primary[1].parent = ""
+		zohan.primary[1].sprite = 40
+		zohan.primary[1].mass = 1
+		zohan.primary[1].maxage = 40
+		zohan.primary[1].bounce = false
+		zohan.primary[1].damage = 5
+		zohan.primary[1].firedelay = 40 --draw frames between shots
+		zohan.primary[1].velocity = {}
+			zohan.primary[1].velocity.x = 5
+			zohan.primary[1].velocity.y = -4
+		zohan.primary[1].sca = {}
+			zohan.primary[1].sca.x = 5
+			zohan.primary[1].sca.y = 1
+		zohan.primary[1].pixeloffset = {}
+			zohan.primary[1].pixeloffset.x = 0
+			zohan.primary[1].pixeloffset.y = 3
+zohan.alternate = {}
+	zohan.alternate[1] = {}
+		zohan.alternate[1].parent = ""
+		zohan.alternate[1].sprite = 40
+		zohan.alternate[1].mass = 1
+		zohan.alternate[1].maxage = 40
+		zohan.alternate[1].bounce = false
+		zohan.alternate[1].damage = 5
+		zohan.alternate[1].firedelay = 60 --draw frames between shots
+		zohan.alternate[1].velocity = {}
+			zohan.alternate[1].velocity.x = 5
+			zohan.alternate[1].velocity.y = -4
+		zohan.alternate[1].sca = {}
+			zohan.alternate[1].sca.x = 5
+			zohan.alternate[1].sca.y = 1
+		zohan.alternate[1].pixeloffset = {}
+			zohan.alternate[1].pixeloffset.x = 0
+			zohan.alternate[1].pixeloffset.y = 3
+		zohan.alternate[1].explode = {}
+			zohan.alternate[1].explode[1] = {}
+				zohan.alternate[1].explode[1].sprite = 40
+				zohan.alternate[1].explode[1].mass = 1
+				zohan.alternate[1].explode[1].maxage = 30
+				zohan.alternate[1].explode[1].bounce = true
+				zohan.alternate[1].explode[1].damage = 2
+				zohan.alternate[1].explode[1].firedelay = 50 --draw frames between shots
+				zohan.alternate[1].explode[1].velocity = {}
+					zohan.alternate[1].explode[1].velocity.x = rnd(10)*-rnd(1)
+					zohan.alternate[1].explode[1].velocity.y = -rnd(10)
+				zohan.alternate[1].explode[1].sca = {}
+					zohan.alternate[1].explode[1].sca.x = 5
+					zohan.alternate[1].explode[1].sca.y = 1
+				zohan.alternate[1].explode[1].pixeloffset = {}
+					zohan.alternate[1].explode[1].pixeloffset.x = 0
+					zohan.alternate[1].explode[1].pixeloffset.y = 0
+			zohan.alternate[1].explode[2] = {}
+				zohan.alternate[1].explode[2].sprite = 40
+				zohan.alternate[1].explode[2].mass = 1
+				zohan.alternate[1].explode[2].maxage = 30
+				zohan.alternate[1].explode[2].bounce = true
+				zohan.alternate[1].explode[2].damage = 2
+				zohan.alternate[1].explode[2].firedelay = 50 --draw frames between shots
+				zohan.alternate[1].explode[2].velocity = {}
+					zohan.alternate[1].explode[2].velocity.x = rnd(10)*-rnd(1)
+					zohan.alternate[1].explode[2].velocity.y = -rnd(10)
+				zohan.alternate[1].explode[2].sca = {}
+					zohan.alternate[1].explode[2].sca.x = 5
+					zohan.alternate[1].explode[2].sca.y = 1
+				zohan.alternate[1].explode[2].pixeloffset = {}
+					zohan.alternate[1].explode[2].pixeloffset.x = 0
+					zohan.alternate[1].explode[2].pixeloffset.y = 0
 
 --------------------------harvester----------------------
 harvester = {}
@@ -595,612 +1309,7 @@ robogirl.alternate = {}
 			robogirl.alternate[1].pixeloffset.x = 0
 			robogirl.alternate[1].pixeloffset.y = 0
 
-
-all_characters = {soldier24, filthmouse, rainhorse, spiderlady, grace, bowman, harvester, robogirl}
-
-------------------------------------init functions-----------------------------------
------------------------------------------------------------------------------------
-function make_player()
-	temp_entity = copy(robogirl)
-	temp_entity.team = "team1"
-	for key,val in pairs(temp_entity.primary) do
-		val.parent = "team1"
-	end
-	for key,val in pairs(temp_entity.alternate) do
-		val.parent = "team1"
-	end
-	spawn = find_spawn_point(temp_entity)
-	temp_entity.pos.x = spawn[1]
-	temp_entity.pos.y = spawn[2]
-	add(player_entities, temp_entity)
-	cam.target = temp_entity
-end
-
-function make_ai()
-	--team 1
-	for i=1,#all_characters do
-		temp_entity = copy(all_characters[i])
-		temp_entity.team = "team1"
-		for key,val in pairs(temp_entity.primary) do
-			val.parent = "team1"
-		end
-		for key,val in pairs(temp_entity.alternate) do
-			val.parent = "team1"
-		end
-		spawn = find_spawn_point(temp_entity)
-		temp_entity.pos.x = spawn[1]
-		temp_entity.pos.y = spawn[2]
-		add(ai_entities, temp_entity)
-	end
-	--team 2
-	for i=1,#all_characters do
-		temp_entity = copy(all_characters[i])
-		temp_entity.team = "team2"
-		for key,val in pairs(temp_entity.primary) do
-			val.parent = "team2"
-		end
-		for key,val in pairs(temp_entity.alternate) do
-			val.parent = "team2"
-		end
-		spawn = find_spawn_point(temp_entity)
-		temp_entity.pos.x = spawn[1]
-		temp_entity.pos.y = spawn[2]
-		add(ai_entities, temp_entity)
-	end
-end
-
-function make_projectile(entity, projectile)
-	temp_proj = copy(projectile)
-	temp_proj.pos = {}
-	temp_proj.age = 0
-	temp_proj.spriteflip = {}
-	temp_proj.velocity.x += entity.velocity.x
-	if entity.spriteflip.x == true then
-		temp_proj.spriteflip.x = true
-		temp_proj.velocity.x = temp_proj.velocity.x*-1
-		temp_proj.pos.x = entity.pos.x-temp_proj.sca.x-temp_proj.pixeloffset.x
-	else
-		temp_proj.pos.x = entity.pos.x+entity.sca.x+temp_proj.pixeloffset.x
-	end
-	temp_proj.pos.y = entity.pos.y+temp_proj.pixeloffset.y
-
-	add(projectiles, temp_proj)
-end
-
-function find_spawn_point(entity)
-	points = {}
-	for i=0,currmap.dim.x do
-		for j=0,currmap.dim.y do
-			val = {i*8,j*8}
-			cell = mget(val[1]/8,val[2]/8)
-			if entity.team == "team1" then
-				if fget(cell, 4) then
-					add(points, val)
-				end
-			else
-				if fget(cell, 5) then
-					add(points, val)
-				end
-			end
-		end
-	end
-	return points[flr(rnd(#points))+1]
-end
-
---------------------------------------ai functions-------------------------------------
-----------------------------------------------------------------------------------------
-
-function ai_movement_behavior(entity)
-	if entity.movement_behavior == "random" then
-		if rnd(2) > 1 then
-			entity.velocity.x += rnd(entity.speed)
-		else
-			entity.velocity.x -= rnd(entity.speed)
-		end
-
-		if rnd(10) < 0.25 and entity.isjumping != true then
-			entity.velocity.y -= rnd(entity.jumpheight)
-		end
-		entity.current_animation = "walk"
-	elseif entity.movement_behavior == "follow" then
-
-		if entity.target then
-			if entity.target.pos.x > entity.pos.x then
-				entity.velocity.x += rnd(entity.speed)+rnd(entity.speed)
-			else
-				entity.velocity.x -= rnd(entity.speed)+rnd(entity.speed)
-			end
-			if entity.isjumping != true and (rnd(10) < 1 or (entity.velocity.x < 0.2 and entity.velocity.x > -0.2)) then
-				entity.velocity.y -= rnd(entity.jumpheight)
-			end
-		end
-		entity.current_animation = "walk"
-	else
-		entity.current_animation = "idle"
-	end
-
-	if entity.velocity.x > 0 then
-		entity.spriteflip.x = false
-	elseif entity.velocity.x < 0 then
-		entity.spriteflip.x = true
-	end
-end
-
-function ai_attack_behavior(entity)
-	if entity.attack_behavior == "primary" then
-		--counter
-		entity.shottimer -= 1
-
-		if entity.shottimer <= 0 then
-			for key,val in pairs(entity.primary) do
-				entity.shottimer = val.firedelay
-				make_projectile(entity, val)
-			end
-		end
-	elseif entity.attack_behavior == "alternate" then
-		--counter
-		entity.alternateshottimer -= 1
-
-		if entity.alternateshottimer <= 0 then
-			for key,val in pairs(entity.alternate) do
-				entity.alternateshottimer = val.firedelay
-				make_projectile(entity, val)
-			end
-			if entity.character == "rainhorse" or entity.character == "robogirl" then
-				entity.shielded = true
-			end
-			if entity.character == "harvester" then
-				if entity.spriteflip.x then
-					entity.pos.x -= 64
-				else
-					entity.pos.x += 64
-				end
-			end
-		end
-	elseif entity.attack_behavior == "cycle" then
-		--counter
-		entity.shottimer -= 1
-		entity.alternateshottimer -= 1
-		if rnd(10) < 5 then
-			if entity.shottimer <= 0 and phys.time%2 == 0 then
-				for key,val in pairs(entity.primary) do
-					entity.shottimer = val.firedelay
-					make_projectile(entity, val)
-				end
-			end
-			if entity.alternateshottimer <= 0 and phys.time%2 == 1 then
-				for key,val in pairs(entity.alternate) do
-					entity.alternateshottimer = val.firedelay
-					make_projectile(entity, val)
-				end
-				if entity.character == "rainhorse" or entity.character == "robogirl" then
-					entity.shielded = true
-				end
-				if entity.character == "harvester" then
-					if entity.spriteflip.x then
-						entity.pos.x -= 64
-					else
-						entity.pos.x += 64
-					end
-				end
-			end
-		end
-	end
-end
-
-function ai_get_target(entity)
-	--then ai
-	otherteam = {}
-	for key,otherentity in pairs(ai_entities) do
-		if otherentity.team != entity.team then
-			add(otherteam, otherentity)
-		end
-	end
-	return otherteam[flr(rnd(#otherteam))+1]
-end
-
-function assess_hp(entity, table)
-	if entity.hp <= 0 then
-		--temporary fun forever fight!----------------------
-		team = entity.team
-		tmp = copy(all_characters[flr(rnd(#all_characters))+1])
-		tmp.team = team
-		spawn = find_spawn_point(tmp)
-		tmp.pos.x = spawn[1]
-		tmp.pos.y = spawn[2]
-		for key,projectile in pairs(tmp.primary) do
-			projectile.parent = team
-		end
-		for key,projectile in pairs(tmp.alternate) do
-			projectile.parent = team
-		end
-		
-		add(ai_entities, tmp)
-		------------------------------------
-		if team == "team1" then
-			game.score.team2 += 1
-		else
-			game.score.team1 += 1
-		end
-		del(table, entity)
-	elseif entity.hp > entity.maxhp then
-		entity.hp = entity.maxhp
-	end
-end
-
-------------------------------------physics functions-----------------------------------
-----------------------------------------------------------------------------------------
-function apply_gravity(entity)
-	entity.velocity.y = entity.velocity.y-phys.gravity[2]*entity.mass
-end
-
-function apply_velocity(entity)
-	entity.pos.x = entity.pos.x+entity.velocity.x
-	entity.pos.y = entity.pos.y+entity.velocity.y
-end
-
-function apply_drag(entity)
-	entity.velocity.x /= phys.drag[1]
-	entity.velocity.y /= phys.drag[2]
-end
-
-function apply_entity_map_collision(entity)
-	top = {flr((entity.pos.x+(entity.sca.x/2))/8), flr(entity.pos.y/8)}
-	bottom = {top[1], flr((entity.pos.y+(entity.sca.y-1))/8)}
-	left = {flr(entity.pos.x/8), flr((entity.pos.y+(entity.sca.y/2))/8)}
-	right = {flr((entity.pos.x+(entity.sca.x-1))/8), left[2]}
-	
-	--bottom
-	val = mget(bottom[1]+currmap.cel.x, bottom[2]+currmap.cel.y)
-	if fget(val, 7) == true then
-		entity.velocity.y = 0
-		entity.mass = 0
-		entity.isjumping = false
-		entity.pos.y = flr((bottom[2]-1)*8) -- make sure the entity stays within bounds
-		return
-	else
-		entity.isjumping = true
-		entity.mass = 1
-	end
-
-	--top
-	val = mget(top[1]+currmap.cel.x, top[2]+currmap.cel.y)
-	if fget(val, 7) == true then
-		entity.velocity.y *= -phys.bounce[2]
-		entity.pos.y = flr((top[2]+1)*8) -- make sure the entity stays within bounds
-	end
-
-	--left
-	val = mget(left[1]+currmap.cel.x, left[2]+currmap.cel.y)
-	if fget(val, 7) == true then
-		entity.velocity.x *= -phys.bounce[1]
-		entity.pos.x = flr((left[1]+1)*8) -- make sure the entity stays within bounds
-	end
-
-	--right
-	val = mget(right[1]+currmap.cel.x, right[2]+currmap.cel.y)
-	if fget(val, 7) == true then
-		entity.velocity.x *= -phys.bounce[1]
-		entity.pos.x = flr((right[1]-1)*8) -- make sure the entity stays within bounds
-	end
-
-
-end
-
-
-function apply_projectile_map_collision(bullet)
-
-	if bullet.bounce then
-		top = {flr((bullet.pos.x+(bullet.sca.x/2))/8), flr(bullet.pos.y/8)}
-		bottom = {top[1], flr((bullet.pos.y+(bullet.sca.y-1))/8)}
-		left = {flr(bullet.pos.x/8), flr((bullet.pos.y+(bullet.sca.y/2))/8)}
-		right = {flr((bullet.pos.x+(bullet.sca.x-1))/8), left[2]}
-		
-		--bottom
-		val = mget(bottom[1]+currmap.cel.x, bottom[2]+currmap.cel.y)
-		if fget(val, 7) == true then
-			if bullet.bounce then
-				bullet.velocity.y *= -phys.bounce[1]
-			end
-			bullet.pos.y = (bottom[2]-1)*8 -- make sure the bullet stays within bounds
-		end
-
-		--left
-		val = mget(left[1]+currmap.cel.x, left[2]+currmap.cel.y)
-		if fget(val, 7) == true then
-			bullet.pos.x = (left[1]+1)*8 -- make sure the bullet stays within bounds
-		end
-
-		--right
-		val = mget(right[1]+currmap.cel.x, right[2]+currmap.cel.y)
-		if fget(val, 7) == true then
-			if bullet.bounce then
-				bullet.velocity.x *= -phys.bounce[1]
-			end
-			bullet.pos.x = (right[1]-1)*8 -- make sure the bullet stays within bounds
-		end
-
-		--top
-		val = mget(top[1]+currmap.cel.x, top[2]+currmap.cel.y)
-		if fget(val, 7) == true then
-			if bullet.bounce then
-				bullet.velocity.y *= -phys.bounce[2]
-			end
-			bullet.pos.y = (top[2]+1)*8 -- make sure the bullet stays within bounds
-		end
-	else
-		val = mget(flr(bullet.pos.x/8), flr(bullet.pos.y/8))
-		if fget(val, 7) == true then
-			del(projectiles, bullet)
-			return
-		end
-	end
-
-end
-
-function apply_ladder_collision(entity)
-	val = mget(flr((entity.pos.x+entity.sca.x/2)/8), flr((entity.pos.y+entity.sca.y/2)/8))
-	if fget(val, 6) == true then
-		entity.onLadder = true
-		entity.velocity.y -= 0.5
-		entity.isjumping = false
-	else
-		entity.onLadder = false
-	end
-end
-
-function projectile_collision(entity)
-	for key,bullet in pairs(projectiles) do
-		c = bullet.pos.x;
-		d = bullet.pos.y;
-		a = c+bullet.sca.x;
-		b = d+bullet.sca.y;
-
-		y = entity.pos.x;
-		z = entity.pos.y;
-		w = y+entity.sca.x;
-		x = z+entity.sca.y;
-
-		intersect = true
-		if(a<w and c<w and a<y and c<y) intersect = false
-		if(a>w and c>w and a>y and c>y) intersect = false
-		if(b<x and d<x and b<z and d<z) intersect = false
-		if(b>x and d>x and b>z and d>z) intersect = false
-		if intersect and entity.ismortal and entity.shielded == false and bullet.damage != nil and ((bullet.damage > 0 and bullet.parent != entity.team) or (bullet.damage < 0 and bullet.parent == entity.team)) then
-			entity.hp -= bullet.damage
-			del(projectiles, bullet)
-		end
-	end
-end
-
-------------------------------------drawing functions-----------------------------------
-----------------------------------------------------------------------------------------
-function draw_entity(entity)
-	spr(entity.sprite, entity.pos.x, entity.pos.y, entity.sca.x/8, entity.sca.y/8, entity.spriteflip.x, entity.spriteflip.y)
-end
-
-function draw_map()
-	map(currmap.cel.x, currmap.cel.y, currmap.s.x, currmap.s.y, currmap.dim.x, currmap.dim.y)
-end
-
-function move_camera()
-	if cam.target then
-		cam.pos.x = cam.pos.x + (cam.target.pos.x - (cam.pos.x+cam.offset.x))/cam.followdistance.x
-		cam.pos.y = cam.pos.y + (cam.target.pos.y - (cam.pos.y+cam.offset.y))/cam.followdistance.y
-	end
-	camera(cam.pos.x,cam.pos.y)
-end
-
-function set_animation_frame(entity)
-
-	--select animation based on movement
-	if entity.isjumping and entity.velocity.y < 0 then
-		entity.current_animation = "jump"
-	elseif entity.velocity.x > 0.2 or entity.velocity.x < -0.2 then
-		entity.current_animation = "walk"
-	else
-		entity.current_animation = "idle"
-	end
-
-	--assign animation frame to draw sprite. animation frames use phys.time modulus the length of the animation
-	if entity.current_animation == "idle" then
-		entity.sprite = entity.animations.idle[phys.time % #entity.animations.idle+1]
-	end
-	if entity.current_animation == "walk" then
-		entity.sprite = entity.animations.walk[phys.time % #entity.animations.walk+1]
-	end
-	if entity.current_animation == "jump" then
-		entity.sprite = entity.animations.jump[phys.time % #entity.animations.jump+1]
-	end
-end
-
-function draw_health_bar(entity)
-	if entity.team == "team1" then
-		colors = {1,12}
-	else
-		colors = {2,8}
-	end
-	line(entity.pos.x, entity.pos.y-7, entity.pos.x+entity.sca.x, entity.pos.y-7, colors[1])
-	line(entity.pos.x, entity.pos.y-7, entity.pos.x+((entity.hp/entity.maxhp)*entity.sca.x), entity.pos.y-7, colors[2])
-end
-
-----------------------------------------execution---------------------------------------
-----------------------------------------------------------------------------------------
-function _init()
-	cls()
-	make_player()
-	make_ai()
-end
-
-function _update()
-	--ai entities
-	for key,entity in pairs(ai_entities) do
-		cleanup(entity)
-		assess_hp(entity, ai_entities)
-		entity.target = ai_get_target(entity)
-		ai_movement_behavior(entity)
-		ai_attack_behavior(entity)
-		if entity.onLadder == false then apply_gravity(entity) end
-		apply_velocity(entity)
-		apply_drag(entity)
-		apply_entity_map_collision(entity)
-		apply_ladder_collision(entity)
-		projectile_collision(entity)
-		set_animation_frame(entity)
-	end
-
-	--player entities
-	for key,entity in pairs(player_entities) do
-		cleanup(entity)
-		assess_hp(entity, player_entities)
-		entity.target = ai_get_target(entity)
-		if entity.onLadder == false then apply_gravity(entity) end
-		apply_velocity(entity)
-		apply_drag(entity)
-		apply_entity_map_collision(entity)
-		apply_ladder_collision(entity)
-		projectile_collision(entity)
-		set_animation_frame(entity)
-	end
-
-	--projectiles
-	for key,entity in pairs(projectiles) do
-		cleanup(entity)
-		apply_gravity(entity)
-		apply_velocity(entity)
-		apply_projectile_map_collision(entity)
-		entity.age += 1
-		if entity.age >= entity.maxage then
-			del(projectiles, entity)
-		end
-	end
-
-end
-
-function _draw()
-	cls()
-	phys.time += 1
-
-	--camera
-	if #player_entities > 0 then
-		cam.target = player_entities[1]
-	elseif #ai_entities > 0 then
-		cam.target = ai_entities[2]
-	end
-	move_camera()
-
-	--map
-	draw_map()
-
-	--ai entities
-	for key,entity in pairs(ai_entities) do
-		draw_entity(entity)
-		draw_health_bar(entity)
-
-		if entity.character == "rainhorse" or entity.character == "robogirl" then
-			entity.shielded = false
-		end
-	end
-
-	--player entities
-	for key,entity in pairs(player_entities) do
-		draw_entity(entity)
-		draw_health_bar(entity)
-
-		--resets
-		if entity.character == "rainhorse" or entity.character == "robogirl" then
-			entity.shielded = false
-		end
-	end
-
-	--projectiles
-	for key,entity in pairs(projectiles) do
-		draw_entity(entity)
-	end
-
-	--gui
-	print(game.score.team1.."-"..game.score.team2, cam.pos.x, cam.pos.y)
-	if player_entities[1] then
-		print(player_entities[1].character, cam.pos.x+50, cam.pos.y)
-	end
-
-	-------------------------------------player feedback------------------------------------
-	----------------------------------------------------------------------------------------
-	if btn(0) then
-		--left
-		for key,entity in pairs(player_entities) do
-			entity.velocity.x -= entity.speed
-			entity.spriteflip.x = true
-		end
-	end
-	if btn(1) then
-		--right
-		for key,entity in pairs(player_entities) do
-			entity.velocity.x += entity.speed
-			entity.spriteflip.x = false
-		end
-	end
-	if btn(2) then
-		--up
-		for key,entity in pairs(player_entities) do
-			if entity.isjumping == false then
-				entity.velocity.y -= entity.jumpheight
-				entity.isjumping = true
-			end
-		end
-	end
-	if btn(3) then
-		--down
-	end
-	if btn(4) then
-		--take control of ai character
-		if #player_entities == 0 and #ai_entities > 0 then
-			add(player_entities, ai_entities[1])
-			del(ai_entities, ai_entities[1])
-		end
-
-		--one
-		for key,entity in pairs(player_entities) do
-			--counter
-			entity.shottimer -= 1
-	
-			--primary fire
-			if entity.shottimer <= 0 then
-				for key,val in pairs(entity.primary) do
-					entity.shottimer = val.firedelay
-					make_projectile(entity, val)
-				end
-			end
-
-		end
-	end
-	if btn(5) then
-		for key,entity in pairs(player_entities) do
-			--counter
-			entity.alternateshottimer -= 1
-
-			--alternate fire
-			if entity.alternateshottimer <= 0 then
-				for key,val in pairs(entity.alternate) do
-					entity.alternateshottimer = val.firedelay
-					make_projectile(entity, val)
-				end
-
-				if entity.character == "rainhorse" or entity.character == "robogirl" then
-					entity.shielded = true
-				end
-
-				if entity.character == "harvester" then
-					if entity.spriteflip.x then
-						entity.pos.x -= 64
-					else
-						entity.pos.x += 64
-					end
-				end
-			end
-		end
-	end
-end
+all_characters = {soldier24, filthmouse, rainhorse, spiderlady, grace, zohan, harvester, robogirl}
 
 
 __gfx__
@@ -1228,14 +1337,14 @@ __gfx__
 06099900060999000609990000000000000000000611100606111006061110060000000000000000000000000000000000000000000000000000000000000000
 00090700000907000009070000000000000000000010106000101060001010600000000000000000000000000000000000000000000000000000000000000000
 00070700007007000007700000000000000000000050500005005000005500000000000000000000000000000000000000000000000000000000000000000000
-3b3b3b334444444400000000dddddddd888888880000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-b333b33b4444444400000000ddddddddeeeeeeee0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-353353354444444400000000dddddddde22ee2e20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-434343434444444400000000dddddddd2dde2d2d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-444444444444444400000000ddddddddddd2dddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-444444444444444400000000dddddddddddddddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-444444444444444400000000dddddddddddddddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-444444444444444400000000dddddddddddddddd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3b3b3b334444444400000000dddddddd888888880500000500000000000000000000000000000000000000000000000000000000000000000000000000000000
+b333b33b4444444400000000ddddddddeeeeeeee5005050500000000000000000000000000000000000000000000000000000000000000000000000000000000
+353353354444444400000000dddddddde22ee2e20950599000000000000000000000000000000000000000000000000000000000000000000000000000000000
+434343434444444400000000dddddddd2dde2d2d55a5995000000000000000000000000000000000000000000000000000000000000000000000000000000000
+444444444444444400000000ddddddddddd2dddd59999a5000000000000000000000000000000000000000000000000000000000000000000000000000000000
+444444444444444400000000dddddddddddddddd059aa95000000000000000000000000000000000000000000000000000000000000000000000000000000000
+444444444444444400000000dddddddddddddddd00aaaa0000000000000000000000000000000000000000000000000000000000000000000000000000000000
+444444444444444400000000dddddddddddddddd000aa00000000000000000000000000000000000000000000000000000000000000000000000000000000000
 fffffffff4ffffff04f4ff4000000000000000000000000004ffff4004ffff400ff4f44000000000000000000000000000000000000000000000000000000000
 fffffffffffffff404ff4f4044444400444444440044444444444440044444440f00004000000000000000000000000000000000000000000000000000000000
 ffffffffffffffff04fff440f44ff4404fff4fff044ff44f444ff440044fff4f0fff444000000000000000000000000000000000000000000000000000000000
