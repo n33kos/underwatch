@@ -1,6 +1,8 @@
 pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
+--underwatch v0.9
+--uuthor: n33kos
 
 --globals-------------------------------------
 ----------------------------------------------
@@ -21,22 +23,12 @@ cam.followdistance = {}
 cam.followdistance.x = 1
 cam.followdistance.y = 8
 
-currmap = {}
-currmap.cel = {}
-currmap.cel.x = 0
-currmap.cel.y = 0
-currmap.s = {}
-currmap.s.x = 0
-currmap.s.y = 0
-currmap.dim = {}
-currmap.dim.x = 64
-currmap.dim.y = 32
-
 game = {}
 game.firstload = true
 game.state = "menu"
 game.menuselection = 0
 game.selectedcharacter = 0
+game.selectedmap = 0
 game.ispaused = false
 game.kills = {}
 game.kills.team1 = 0
@@ -59,19 +51,9 @@ function make_player()
 	temp_entity.team = "team1"
 	for key,val in pairs(temp_entity.primary) do
 		val.parent = "team1"
-		if type(val.explode) == "table" then
-			for key2,val2 in pairs(val.explode) do
-				val2.parent = "team1"
-			end
-		end
 	end
 	for key,val in pairs(temp_entity.alternate) do
 		val.parent = "team1"
-		if type(val.explode) == "table" then
-			for key2,val2 in pairs(val.explode) do
-				val2.parent = "team1"
-			end
-		end
 	end
 	spawn = find_spawn_point(temp_entity)
 	temp_entity.pos.x = spawn[1]
@@ -87,19 +69,9 @@ function make_ai()
 		temp_entity.team = "team1"
 		for key,val in pairs(temp_entity.primary) do
 			val.parent = "team1"
-			if type(val.explode) == "table" then
-				for key2,val2 in pairs(val.explode) do
-					val2.parent = "team1"
-				end
-			end
 		end
 		for key,val in pairs(temp_entity.alternate) do
 			val.parent = "team1"
-			if type(val.explode) == "table" then
-				for key2,val2 in pairs(val.explode) do
-					val2.parent = "team1"
-				end
-			end
 		end
 		spawn = find_spawn_point(temp_entity)
 		temp_entity.pos.x = spawn[1]
@@ -112,19 +84,9 @@ function make_ai()
 		temp_entity.team = "team2"
 		for key,val in pairs(temp_entity.primary) do
 			val.parent = "team2"
-			if type(val.explode) == "table" then
-				for key2,val2 in pairs(val.explode) do
-					val2.parent = "team2"
-				end
-			end
 		end
 		for key,val in pairs(temp_entity.alternate) do
 			val.parent = "team2"
-			if type(val.explode) == "table" then
-				for key2,val2 in pairs(val.explode) do
-					val2.parent = "team2"
-				end
-			end
 		end
 		spawn = find_spawn_point(temp_entity)
 		temp_entity.pos.x = spawn[1]
@@ -133,14 +95,11 @@ function make_ai()
 	end
 end
 
-function make_projectile(entity, projectile, inheritvelocity)
+function make_projectile(entity, projectile)
 	temp_proj = copy(projectile)
 	temp_proj.pos = {}
 	temp_proj.age = 0
 	temp_proj.spriteflip = {}
-	if inheritvelocity then
-		temp_proj.velocity.x += entity.velocity.x
-	end
 	if entity.spriteflip.x == true then
 		temp_proj.spriteflip.x = true
 		temp_proj.velocity.x = temp_proj.velocity.x*-1
@@ -158,7 +117,7 @@ function find_spawn_point(entity)
 	for i=0,currmap.dim.x do
 		for j=0,currmap.dim.y do
 			val = {i*8,j*8}
-			cell = mget(val[1]/8,val[2]/8)
+			cell = mget(val[1]/8+currmap.cel.x,val[2]/8+currmap.cel.y)
 			if entity.team == "team1" then
 				if fget(cell, 4) then
 					add(points, val)
@@ -176,19 +135,12 @@ end
 --ai functions-------------------------------------
 ---------------------------------------------------
 function ai_movement_behavior(entity)
-	if entity.movement_behavior == "random" then
-		if rnd(2) > 1 then
-			entity.velocity.x += rnd(entity.speed)
-		else
-			entity.velocity.x -= rnd(entity.speed)
-		end
-
-		if rnd(10) < 0.25 and entity.isjumping != true then
-			entity.velocity.y -= rnd(entity.jumpheight)
-		end
-		entity.current_animation = "walk"
-	elseif entity.movement_behavior == "follow" then
-		if entity.target then
+	if entity.pos.x < 192 then
+		entity.velocity.x += rnd(entity.speed)+rnd(entity.speed)
+	elseif entity.pos.x > 312 then
+		entity.velocity.x -= rnd(entity.speed)+rnd(entity.speed)
+	else
+		if type(entity.target) then
 			if entity.target.pos.x > entity.pos.x then
 				entity.velocity.x += rnd(entity.speed)+rnd(entity.speed)
 			else
@@ -197,32 +149,14 @@ function ai_movement_behavior(entity)
 			if entity.isjumping != true and (rnd(10) < 1 or (entity.velocity.x < 0.2 and entity.velocity.x > -0.2)) then
 				entity.velocity.y -= rnd(entity.jumpheight)
 			end
-		end
-		entity.current_animation = "walk"
-	elseif entity.movement_behavior == "objective" then
-		if entity.pos.x < 252 then
-			entity.velocity.x += rnd(entity.speed)+rnd(entity.speed)
-		elseif entity.pos.x > 312 then
-			entity.velocity.x -= rnd(entity.speed)+rnd(entity.speed)
 		else
-			if entity.target then
-				if entity.target.pos.x > entity.pos.x then
-					entity.velocity.x += rnd(entity.speed)+rnd(entity.speed)
-				else
-					entity.velocity.x -= rnd(entity.speed)+rnd(entity.speed)
-				end
-				if entity.isjumping != true and (rnd(10) < 1 or (entity.velocity.x < 0.2 and entity.velocity.x > -0.2)) then
-					entity.velocity.y -= rnd(entity.jumpheight)
-				end
-			end
+			entity.target = ai_get_target(entity)
 		end
-		if entity.isjumping != true and (rnd(10) < 1 or (entity.velocity.x < 0.2 and entity.velocity.x > -0.2)) then
-			entity.velocity.y -= rnd(entity.jumpheight)
-		end
-		entity.current_animation = "walk"
-	else
-		entity.current_animation = "idle"
 	end
+	if entity.isjumping != true and (rnd(10) < 0.25 or (entity.velocity.x < 0.2 and entity.velocity.x > -0.2)) then
+		entity.velocity.y -= rnd(entity.jumpheight)
+	end
+	entity.current_animation = "walk"
 
 	if entity.velocity.x > 0 then
 		entity.spriteflip.x = false
@@ -232,28 +166,24 @@ function ai_movement_behavior(entity)
 end
 
 function ai_attack_behavior(entity)
-	if entity.attack_behavior == "primary" then
-		--counter
-		entity.shottimer -= 1
-
-		if entity.shottimer <= 0 then
+	--counter
+	entity.shottimer -= 1
+	entity.alternateshottimer -= 1
+	if rnd(10) < 5 then
+		if entity.shottimer <= 0 and time%2 == 0 then
 			for key,val in pairs(entity.primary) do
 				entity.shottimer = val.firedelay
-				make_projectile(entity, val, true)
+				make_projectile(entity, val)
 			end
 		end
-	elseif entity.attack_behavior == "alternate" then
-		--counter
-		entity.alternateshottimer -= 1
-
-		if entity.alternateshottimer <= 0 then
+		if entity.alternateshottimer <= 0 and time%2 == 1 then
 			for key,val in pairs(entity.alternate) do
 				entity.alternateshottimer = val.firedelay
 				if (entity.character == "robogirl" and entity.shields > 0) or entity.character != "robogirl" then
-					make_projectile(entity, val, true)
+					make_projectile(entity, val)
 				end
 			end
-			if entity.character == "rainhorse" or entity.character == "robogirl" and entity.shields > 0 then
+			if entity.character == "rainhorse" or entity.character == "robogirl"  and entity.shields > 0 then
 				entity.shielded = true
 			end
 			if entity.character == "harvester" then
@@ -261,36 +191,6 @@ function ai_attack_behavior(entity)
 					entity.pos.x -= 64
 				else
 					entity.pos.x += 64
-				end
-			end
-		end
-	elseif entity.attack_behavior == "cycle" then
-		--counter
-		entity.shottimer -= 1
-		entity.alternateshottimer -= 1
-		if rnd(10) < 5 then
-			if entity.shottimer <= 0 and time%2 == 0 then
-				for key,val in pairs(entity.primary) do
-					entity.shottimer = val.firedelay
-					make_projectile(entity, val, true)
-				end
-			end
-			if entity.alternateshottimer <= 0 and time%2 == 1 then
-				for key,val in pairs(entity.alternate) do
-					entity.alternateshottimer = val.firedelay
-					if (entity.character == "robogirl" and entity.shields > 0) or entity.character != "robogirl" then
-						make_projectile(entity, val, true)
-					end
-				end
-				if entity.character == "rainhorse" or entity.character == "robogirl"  and entity.shields > 0 then
-					entity.shielded = true
-				end
-				if entity.character == "harvester" then
-					if entity.spriteflip.x then
-						entity.pos.x -= 64
-					else
-						entity.pos.x += 64
-					end
 				end
 			end
 		end
@@ -425,11 +325,12 @@ function apply_projectile_map_collision(bullet)
 			bullet.pos.y = (top[2]+1)*8 -- make sure the bullet stays within bounds
 		end
 	else
-		val = mget(flr(bullet.pos.x/8), flr(bullet.pos.y/8))
+		val = mget(flr(bullet.pos.x/8)+currmap.cel.x, flr(bullet.pos.y/8)+currmap.cel.y)
 		if fget(val, 7) == true then
-			if type(bullet.explode) == "table" then
-				for key,val in pairs(bullet.explode) do
-					make_projectile(bullet, val)
+			if bullet.explode then
+				for i=0,1 do
+					explosion.parent = bullet.parent
+					make_projectile(bullet, explosion)
 				end
 			end
 			del(projectiles, bullet)
@@ -439,7 +340,7 @@ function apply_projectile_map_collision(bullet)
 end
 
 function apply_ladder_collision(entity)
-	val = mget(flr((entity.pos.x+entity.sca.x/2)/8), flr((entity.pos.y+entity.sca.y/2)/8))
+	val = mget(flr((entity.pos.x+entity.sca.x/2)/8)+currmap.cel.x, flr((entity.pos.y+entity.sca.y/2)/8)+currmap.cel.y)
 	if fget(val, 6) == true then
 		entity.onladder = true
 		entity.isjumping = false
@@ -467,9 +368,10 @@ function apply_projectile_entity_collision(entity)
 		if(b<x and d<x and b<z and d<z) intersect = false
 		if(b>x and d>x and b>z and d>z) intersect = false
 		if intersect and entity.ismortal and bullet.damage != nil and ((bullet.damage > 0 and bullet.parent != entity.team) or (bullet.damage < 0 and bullet.parent == entity.team)) then
-			if type(bullet.explode) == "table" then
-				for key,val in pairs(bullet.explode) do
-					make_projectile(bullet, val)
+			if bullet.explode then
+				for i=0,1 do
+					explosion.parent = bullet.parent
+					make_projectile(bullet, explosion)
 				end
 			end
 			if entity.shielded and entity.shields > 0 then
@@ -489,11 +391,7 @@ function draw_entity(entity)
 end
 
 function draw_map()
-	map(currmap.cel.x, currmap.cel.y, currmap.s.x, currmap.s.y, currmap.dim.x, currmap.dim.y)
-end
-
-function draw_bg_plane()
-	map(64, 0, cam.pos.x, cam.pos.y, 16, 16)
+	map(currmap.cel.x, currmap.cel.y, 0, 0, currmap.dim.x, currmap.dim.y)
 end
 
 function move_camera()
@@ -632,8 +530,13 @@ function assess_capture()
 	--max
 	if game.objective.team1capturepercentage > 100 then game.objective.team1capturepercentage = 100 end
 	if game.objective.team2capturepercentage > 100 then game.objective.team2capturepercentage = 100 end
-	if game.objective.team1controlpercentage > 100 then game.objective.team1controlpercentage = 100 end
-	if game.objective.team2controlpercentage > 100 then game.objective.team2controlpercentage = 100 end	
+
+	--win logic
+	if game.objective.team1controlpercentage >= 100 or game.objective.team2controlpercentage >= 100 then
+		game.ispaused = true
+		game.state = "score"
+	end
+
 end
 
 --helper functions----------------------------
@@ -652,19 +555,9 @@ function copy(o)
 end
 
 function cleanup(entity)
-	cleanuplimit = 2047
-	for k, v in pairs(entity) do
-		if type(v) == 'table' then
-			for k2, v2 in pairs(v) do
-				if type(v2) == "number" and (v2 > cleanuplimit or v2 < -cleanuplimit) then
-					entity.hp = 0
-				end
-			end
-		else
-			if type(v) == "number" and (v > cleanuplimit or v < -cleanuplimit) then
-				entity.hp = 0
-			end
-		end
+	if entity.pos.x < 0 or entity.pos.x > currmap.dim.x*8 or entity.pos.y < 0 or entity.pos.y > currmap.dim.y*8 then
+		entity.hp = 0
+		entity.age = 2047
 	end
 end
 
@@ -678,6 +571,7 @@ end
 function _update()
 	if game.ispaused == false then
 		--game objectives
+		currmap = all_maps[flr(game.selectedmap%#all_maps)+1]
 		assess_capture()
 
 		--ai entities
@@ -722,9 +616,9 @@ function _update()
 			apply_projectile_map_collision(entity)
 			entity.age += 1
 			if entity.age >= entity.maxage then
-				if type(entity.explode) == "table" then
-					for key,val in pairs(entity.explode) do
-						make_projectile(entity, val)
+				if entity.explode then
+					for i=0,1 do
+						make_projectile(entity, explosion)
 					end
 				end
 				del(projectiles, entity)
@@ -748,7 +642,6 @@ function _draw()
 		move_camera()
 
 		--map
-		draw_bg_plane()
 		draw_map()
 
 		--ai entities
@@ -801,31 +694,82 @@ function _draw()
 
 	--gui
 	if game.state == "menu" then
+		if game.firstload then
+			time = 0
+			game.kills.team1 = 0
+			game.kills.team2 = 0
+			game.objective.team1capturepercentage = 0
+			game.objective.team2capturepercentage = 0
+			game.objective.team1controlpercentage = 0
+			game.objective.team2controlpercentage = 0
+			make_player()
+			make_ai()
+			game.firstload = false
+		end
+
+		--window
 		rectfill(cam.pos.x+8, cam.pos.y+8, cam.pos.x+120, cam.pos.y+120, 0)
 		rect(cam.pos.x+6, cam.pos.y+6, cam.pos.x+122, cam.pos.y+122, 1)
 		rect(cam.pos.x+8, cam.pos.y+8, cam.pos.x+120, cam.pos.y+120, 12)
 
-		print("press Z or X to play", cam.pos.x+20, cam.pos.y+110, 12)
+		--logo
+		sspr(56, 48, 8, 8, cam.pos.x+54, cam.pos.y+15, 16, 16)
+		sspr(0, 48, 56, 8, cam.pos.x+15, cam.pos.y+35, 100, 12)
+
+		print("press z or x to play", cam.pos.x+20, cam.pos.y+110, 1)
 		if flr(game.menuselection%2) == 0 then
-			print("character: "..all_characters[flr(game.selectedcharacter%#all_characters)+1].character, cam.pos.x+20, cam.pos.y+40, 12)
+			print("character: "..all_characters[flr(game.selectedcharacter%#all_characters)+1].character, cam.pos.x+20, cam.pos.y+60, 12)
+			print("map: "..all_maps[flr(game.selectedmap%#all_maps)+1].name, cam.pos.x+20, cam.pos.y+70, 1)
+		elseif flr(game.menuselection%2) == 1 then
+			print("character: "..all_characters[flr(game.selectedcharacter%#all_characters)+1].character, cam.pos.x+20, cam.pos.y+60, 1)
+			print("map: "..all_maps[flr(game.selectedmap%#all_maps)+1].name, cam.pos.x+20, cam.pos.y+70, 12)
 		end
 
-		if btn(0) then game.selectedcharacter += 0.25 end
-		if btn(1) then game.selectedcharacter -= 0.25 end
-		if btn(4) or btn(5) then game.state = "play" end
+		if btn(2) then
+			game.menuselection += 0.25
+		end
+		if btn(3) then
+			game.menuselection -= 0.25
+		end
+
+		if btn(0) then
+			if flr(game.menuselection%2) == 0 then
+				game.selectedcharacter += 0.25
+			elseif flr(game.menuselection%2) == 1 then
+				game.selectedmap += 0.25
+			end
+		end
+		if btn(1) then
+			if flr(game.menuselection%2) == 0 then
+				game.selectedcharacter -= 0.25
+			elseif flr(game.menuselection%2) == 1 then
+				game.selectedmap -= 0.25
+			end
+		end
+		if btn(4) or btn(5) then
+			game.state = "play"
+			game.firstload = true
+		end
 	elseif game.state == "play" then
+		game.ispaused = false
 
 		if game.firstload then
 			game.firstload = false
+			time = 0
+			ai_entities = {}
+			player_entities = {}
+			game.kills.team1 = 0
+			game.kills.team2 = 0
+			game.objective.team1capturepercentage = 0
+			game.objective.team2capturepercentage = 0
+			game.objective.team1controlpercentage = 0
+			game.objective.team2controlpercentage = 0
 			make_player()
 			make_ai()
 		end
 
 		print("capture: "..flr(game.objective.team1capturepercentage).."%-"..flr(game.objective.team2capturepercentage).."%", cam.pos.x, cam.pos.y, 6)
-		print("control: "..flr(game.objective.team1controlpercentage).."%-"..flr(game.objective.team2controlpercentage).."%", cam.pos.x, cam.pos.y+6, 6)
-		if player_entities[1] then
-			print(player_entities[1].character, cam.pos.x+64, cam.pos.y, 6)
-		end
+		print("control: "..flr(game.objective.team1controlpercentage).."%-"..flr(game.objective.team2controlpercentage).."%", cam.pos.x+70, cam.pos.y, 6)
 
 		--player feedback------------------------------------
 		-----------------------------------------------------
@@ -876,9 +820,8 @@ function _draw()
 				--primary fire
 				if entity.shottimer <= 0 then
 					for key,val in pairs(entity.primary) do
-						--entity.shottimer = val.firedelay
-						entity.shottimer = 5
-						make_projectile(entity, val, true)
+						entity.shottimer = val.firedelay
+						make_projectile(entity, val)
 					end
 				end
 
@@ -891,9 +834,8 @@ function _draw()
 				--alternate fire
 				if entity.alternateshottimer <= 0 then
 					for key,val in pairs(entity.alternate) do
-						--entity.alternateshottimer = val.firedelay
-						entity.alternateshottimer = 5
-						make_projectile(entity, val, true)
+						entity.alternateshottimer = val.firedelay
+						make_projectile(entity, val)
 					end
 
 					if entity.character == "rainhorse" or entity.character == "robogirl" and entity.shields > 0 then
@@ -912,6 +854,33 @@ function _draw()
 		end
 	elseif game.state == "score" then
 		game.ispaused = true
+		game.firstload = true
+		
+		--window
+		rectfill(cam.pos.x+8, cam.pos.y+8, cam.pos.x+120, cam.pos.y+120, 0)
+		rect(cam.pos.x+6, cam.pos.y+6, cam.pos.x+122, cam.pos.y+122, 1)
+		rect(cam.pos.x+8, cam.pos.y+8, cam.pos.x+120, cam.pos.y+120, 12)
+
+		--logo
+		sspr(56, 48, 8, 8, cam.pos.x+54, cam.pos.y+15, 16, 16)
+
+		if game.objective.team1controlpercentage > game.objective.team2controlpercentage then
+			print("win", cam.pos.x+15, cam.pos.y+60, 12)
+			print("lose", cam.pos.x+65, cam.pos.y+60, 8)
+		else
+			print("lose", cam.pos.x+15, cam.pos.y+60, 12)
+			print("win", cam.pos.x+65, cam.pos.y+60, 8)
+		end
+		
+		print("kills: "..game.kills.team1, cam.pos.x+15, cam.pos.y+70, 12)
+		print("control: "..game.objective.team1controlpercentage.."%", cam.pos.x+15, cam.pos.y+80, 12)
+
+		print("kills: "..game.kills.team2, cam.pos.x+65, cam.pos.y+70, 8)
+		print("control: "..game.objective.team2controlpercentage.."%", cam.pos.x+65, cam.pos.y+80, 8)
+
+		print("press z or x to restart", cam.pos.x+20, cam.pos.y+110, 1)
+		if btn(4) or btn(5) then game.state = "menu" end
+
 	end
 end
 
@@ -941,7 +910,6 @@ char_template.shields = 0
 char_template.sprite = 0
 char_template.team = "none"
 char_template.current_animation = "idle"
-char_template.movement_behavior = "objective"
 char_template.attack_behavior = "cycle"
 char_template.spriteflip = {}
 	char_template.spriteflip.x = true
@@ -953,6 +921,25 @@ char_template.alternate = {}
 char_template.spriteflip = {}
 	char_template.spriteflip.x = true
 	char_template.spriteflip.y = false
+
+----------------explosion-----------------
+explosion = {}
+	explosion = {}
+		explosion.sprite = 53
+		explosion.mass = 0
+		explosion.maxage = 30
+		explosion.bounce = true
+		explosion.damage = 1
+		explosion.firedelay = 50 --draw frames between shots
+		explosion.velocity = {}
+			explosion.velocity.x = rnd(2)*-rnd(1)
+			explosion.velocity.y = gravity[2]
+		explosion.sca = {}
+			explosion.sca.x = 8
+			explosion.sca.y = 8
+		explosion.pixeloffset = {}
+			explosion.pixeloffset.x = 0
+			explosion.pixeloffset.y = 0
 
 ----------------soldier24-----------------
 soldier24 = {}
@@ -996,23 +983,7 @@ soldier24.alternate = {}
 		soldier24.alternate[1].pixeloffset = {}
 			soldier24.alternate[1].pixeloffset.x = 0
 			soldier24.alternate[1].pixeloffset.y = 4
-		soldier24.alternate[1].explode = {}
-			soldier24.alternate[1].explode[1] = {}
-				soldier24.alternate[1].explode[1].sprite = 53
-				soldier24.alternate[1].explode[1].mass = 0
-				soldier24.alternate[1].explode[1].maxage = 30
-				soldier24.alternate[1].explode[1].bounce = true
-				soldier24.alternate[1].explode[1].damage = 1
-				soldier24.alternate[1].explode[1].firedelay = 50 --draw frames between shots
-				soldier24.alternate[1].explode[1].velocity = {}
-					soldier24.alternate[1].explode[1].velocity.x = rnd(2)*-rnd(1)
-					soldier24.alternate[1].explode[1].velocity.y = gravity[2]
-				soldier24.alternate[1].explode[1].sca = {}
-					soldier24.alternate[1].explode[1].sca.x = 8
-					soldier24.alternate[1].explode[1].sca.y = 8
-				soldier24.alternate[1].explode[1].pixeloffset = {}
-					soldier24.alternate[1].explode[1].pixeloffset.x = 0
-					soldier24.alternate[1].explode[1].pixeloffset.y = 0
+		soldier24.alternate[1].explode = true
 
 ---------------filthmouse--------------
 filthmouse = {}
@@ -1040,6 +1011,7 @@ filthmouse.primary = {}
 		filthmouse.primary[1].pixeloffset = {}
 			filthmouse.primary[1].pixeloffset.x = 0
 			filthmouse.primary[1].pixeloffset.y = 3
+		filthmouse.primary[1].explode = true
 filthmouse.alternate = {}
 	filthmouse.alternate[1] = {}
 		filthmouse.alternate[1].parent = ""
@@ -1058,23 +1030,7 @@ filthmouse.alternate = {}
 		filthmouse.alternate[1].pixeloffset = {}
 			filthmouse.alternate[1].pixeloffset.x = 0
 			filthmouse.alternate[1].pixeloffset.y = 3
-		filthmouse.alternate[1].explode = {}
-			filthmouse.alternate[1].explode[1] = {}
-				filthmouse.alternate[1].explode[1].sprite = 53
-				filthmouse.alternate[1].explode[1].mass = 0
-				filthmouse.alternate[1].explode[1].maxage = 30
-				filthmouse.alternate[1].explode[1].bounce = false
-				filthmouse.alternate[1].explode[1].damage = 1
-				filthmouse.alternate[1].explode[1].firedelay = 50 --draw frames between shots
-				filthmouse.alternate[1].explode[1].velocity = {}
-					filthmouse.alternate[1].explode[1].velocity.x = rnd(2)*-rnd(1)
-					filthmouse.alternate[1].explode[1].velocity.y = gravity[2]
-				filthmouse.alternate[1].explode[1].sca = {}
-					filthmouse.alternate[1].explode[1].sca.x = 8
-					filthmouse.alternate[1].explode[1].sca.y = 8
-				filthmouse.alternate[1].explode[1].pixeloffset = {}
-					filthmouse.alternate[1].explode[1].pixeloffset.x = 0
-					filthmouse.alternate[1].explode[1].pixeloffset.y = 0
+		filthmouse.alternate[1].explode = true
 
 ------------------rainhorse----------------------
 rainhorse = {}
@@ -1114,7 +1070,6 @@ spiderlady = {}
 spiderlady = copy(char_template)
 spiderlady.character = "spiderlady"
 spiderlady.speed *= 1.5
-spiderlady.jumpheight = 7.5
 spiderlady.hp = 3
 spiderlady.maxhp = 3
 spiderlady.animations = {}
@@ -1164,7 +1119,6 @@ grace = copy(char_template)
 grace.character = "grace"
 grace.speed *= 1.5
 grace.jumpheight = 5
-grace.movement_behavior = "follow"
 grace.hp = 5
 grace.maxhp = 5
 grace.mass = 0.01
@@ -1257,39 +1211,7 @@ zohan.alternate = {}
 		zohan.alternate[1].pixeloffset = {}
 			zohan.alternate[1].pixeloffset.x = 0
 			zohan.alternate[1].pixeloffset.y = 3
-		zohan.alternate[1].explode = {}
-			zohan.alternate[1].explode[1] = {}
-				zohan.alternate[1].explode[1].sprite = 40
-				zohan.alternate[1].explode[1].mass = 1
-				zohan.alternate[1].explode[1].maxage = 30
-				zohan.alternate[1].explode[1].bounce = true
-				zohan.alternate[1].explode[1].damage = 2
-				zohan.alternate[1].explode[1].firedelay = 50 --draw frames between shots
-				zohan.alternate[1].explode[1].velocity = {}
-					zohan.alternate[1].explode[1].velocity.x = rnd(10)*-rnd(1)
-					zohan.alternate[1].explode[1].velocity.y = -rnd(10)
-				zohan.alternate[1].explode[1].sca = {}
-					zohan.alternate[1].explode[1].sca.x = 5
-					zohan.alternate[1].explode[1].sca.y = 1
-				zohan.alternate[1].explode[1].pixeloffset = {}
-					zohan.alternate[1].explode[1].pixeloffset.x = 0
-					zohan.alternate[1].explode[1].pixeloffset.y = 0
-			zohan.alternate[1].explode[2] = {}
-				zohan.alternate[1].explode[2].sprite = 40
-				zohan.alternate[1].explode[2].mass = 1
-				zohan.alternate[1].explode[2].maxage = 30
-				zohan.alternate[1].explode[2].bounce = true
-				zohan.alternate[1].explode[2].damage = 2
-				zohan.alternate[1].explode[2].firedelay = 50 --draw frames between shots
-				zohan.alternate[1].explode[2].velocity = {}
-					zohan.alternate[1].explode[2].velocity.x = rnd(10)*-rnd(1)
-					zohan.alternate[1].explode[2].velocity.y = -rnd(10)
-				zohan.alternate[1].explode[2].sca = {}
-					zohan.alternate[1].explode[2].sca.x = 5
-					zohan.alternate[1].explode[2].sca.y = 1
-				zohan.alternate[1].explode[2].pixeloffset = {}
-					zohan.alternate[1].explode[2].pixeloffset.x = 0
-					zohan.alternate[1].explode[2].pixeloffset.y = 0
+		zohan.alternate[1].explode = true
 
 --------------------------harvester----------------------
 harvester = {}
@@ -1476,6 +1398,26 @@ robogirl.alternate = {}
 
 all_characters = {soldier24, filthmouse, rainhorse, spiderlady, grace, zohan, harvester, robogirl}
 
+currmap = {}
+
+factory = {}
+factory.name = "factory"
+factory.cel = {}
+factory.cel.x = 0
+factory.cel.y = 0
+factory.dim = {}
+factory.dim.x = 64
+factory.dim.y = 32
+
+zinra = {}
+zinra.name = "zinra"
+zinra.cel = {}
+zinra.cel.x = 0
+zinra.cel.y = 33
+zinra.dim = {}
+zinra.dim.x = 64
+zinra.dim.y = 32
+all_maps = {factory, zinra}
 
 __gfx__
 066f0000066f0000066f000095500000c1660000225500002255000022550000777777660cc00000005550000055500000555000200000000800800800000000
@@ -1502,126 +1444,126 @@ __gfx__
 06099900060999000609990000000000000000000611100606111006061110060000000000000000000000000000000000000000000000000000000000000000
 00090700000907000009070000000000000000000010106000101060001010600000000000000000000000000000000000000000000000000000000000000000
 00070700007007000007700000000000000000000050500005005000005500000000000000000000000000000000000000000000000000000000000000000000
-3b3b3b334444444400000000dddddddd888888880500000500000000000000000000000000000000000000000000000000000000000000000000000000000000
-b333b33b4444444400000000ddddddddeeeeeeee5005050500000000000000000000000000000000000000000000000000000000000000000000000000000000
-353353354444444400000000dddddddde22ee2e20950599000000000000000000000000000000000000000000000000000000000000000000000000000000000
-434343434444444400000000dddddddd2dde2d2d55a5995000000000000000000000000000000000000000000000000000000000000000000000000000000000
-444444444444444400000000ddddddddddd2dddd59999a5000000000000000000000000000000000000000000000000000000000000000000000000000000000
-444444444444444400000000dddddddddddddddd059aa95000000000000000000000000000000000000000000000000000000000000000000000000000000000
-444444444444444400000000dddddddddddddddd00aaaa0000000000000000000000000000000000000000000000000000000000000000000000000000000000
-444444444444444400000000dddddddddddddddd000aa00000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000500000500000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000005005050500000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000950599000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000055a5995000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000059999a5000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000059aa95000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000aaaa0000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000aa00000000000000000000000000000000000000000000000000000000000000000000000000000000000
 66666666555555550767665000000000000000000000000007666650076666500777665000000000000000000000000000000000000000000000000000000000
 66666666666666660766565077777500777777770077777777777550077755550500005000000000000000000000000000000000000000000000000000000000
-66666666555556560766655067566550766676660776677677766550077666560776665000000000000000000000000000000000000000000000000000000000
-66666666666666660776665065656650666766670767665667676650076766560500005000000000000000000000000000000000000000000000000000000000
+666666665555565607666550675665507666766607766776777665500776665607766650000000000000d0000000000000000000000000000000000000000000
+6666666666666666077666506565665066676667076766566767665007676656050000500000d000000000000000000000000000000000000000000000000000
 66666666555555550767665065665650665666560766765665665650076656560777665000000000000000000000000000000000000000000000000000000000
 66666666666666660766565065666550656665660766655665666550076665560500005000000000000000000000000000000000000000000000000000000000
-66666666656555560766655055555550555555550777555555555500007555550767665000000000000000000000000000000000000000000000000000000000
-66666666666666660776665005566650000000000776665000000000000000000500005000000000000000000000000000000000000000000000000000000000
-06000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+666666666565555607666550575555505555555507775555555555000075555507676650000000d0000000000000000000000000000000000000000000000000
+6666666666666666077666500776665000000000077666500000000000000000050000500d000000000000000000000000000000000000000000000000000000
+3b3b3b3344442444000bb3b33b3b30000ff424444444242007bbb330000000000ff4422000007770000000000000000000000000000000000000000000000000
+b333b33b424444440bb333333333b3000f4444444424424007bb3b30000000000f00002000000000000000000000000000000000000000000000000000000000
+323353354444444400b35335b23333300f444444444444200bbbb330000000000fff442000770000000007700000000000000000000000000000000000000000
+23232323444444240b332323232b3b3004f444244444242007bbbb30000000000f00002000000000000000000000000000000000000000000000000000000000
+424242424444444403b2424242424b330f444444444442400bbbb330000665000ff4f42000000000000000000000000000000000000000000000000000000000
+4444444444442444b3324444444444b00f442444244424200bbb3b30066655500f00002000000000000000000000000000000000000000000000000000000000
+4444424424444444032442444444424304f444444444442007bbb330666566500ff4422077007770000000000000000000000000000000000000000000000000
+244444444444444402444444244444400f4444444444242007bbb330665565550f00002000000000000000000000000000000000000000000000000000000000
+6500656666506665066665666656500656666656666656666565006505aaaa900000000000000000000000000000000000000000000000000000000000000000
+65006565006565065650006506565006565006500650065000650065560000650000000000000000000000000000000000000000000000000000000000000000
+65006565006565065666506565065656566666500650065000666665656006560000000000000000000000000000000000000000000000000000000000000000
+65006565006565065650006506565656565006500650065000650065605665060000000000000000000000000000000000000000000000000000000000000000
+66666565006566650666656506566666565006500650066665650065600550060000000000000000000000000000000000000000000000000000000000000000
+0000000aaa900000000000000000000000aaa9000000000000000000600000060000000000000000000000000000000000000000000000000000000000000000
+00000000a90000000000000000000000000a90000000000000000000560000650000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000056666500000000000000000000000000000000000000000000000000000000000000000
+000a0a00000000000000000000000000000000005555555500000000000000000000000000000000000000000000000000000000000000000000000000000000
+00a0a000000000000000000000000000000000005555555500000000000000000000000000000000000000000000000000000000000000000000000000000000
+000a0a00000000000000000000000000000000005555555500000000000000000000000000000000000000000000000000000000000000000000000000000000
+00a0a000000000000000000000000000000000005555555500000000000000000000000000000000000000000000000000000000000000000000000000000000
+000a0a00000000000000000000000000000000005555555500000000000000000000000000000000000000000000000000000000000000000000000000000000
+00a0a000000000000000000000000000000000005555555500000000000000000000000000000000000000000000000000000000000000000000000000000000
+000a0a00000000000000000000000000000000005555555500000000000000000000000000000000000000000000000000000000000000000000000000000000
+00a0a000cccccccc8888888899999999000000005555555500000000000000000000000000000000000000000000000000000000000000000000000000000000
+6595959595959595959595959595959595a59595959595959595952395959595959595959595959595959595959595959595959523a5a5a5a5a5959595a5a565
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+65a5959595959595a5a5a59595959595a5a595959595959595232323a5a5a5a5a5a5a5a595959595a5239595239595952395952395959595a5a5959595a5a565
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+65a5a59595959595a5a5a5a5a5959595a5a5a5a59595959595952323a5a5a5a5a5a5a5a5a52395a5a52323952395239595232323959595959595959595a52365
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+6523a5a595a5a5a5a5a5a523a5a5a5a523a5a5a5a59595959595952323232323232323a5a5a523a5a52323959523959523a5a5959595959595a5a59595a5a565
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+652323a523a5a52323a5a52323a5a5a59523a5a5a5a5a5a523232323232323232323f7f7f7a5a5a5f7f7f7959595a5a523a595959595959595a5a5a523a5a565
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+652323a5a5a5a523232323232323a5a59595a595a59595a5a5a5a52323232323232323232323a5a5232323a5a5a5a5a523a5a5a5a5a595959595a5a523a52365
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+652323a5a523232323232323232323232323a5a5232395959595a5a523232323232323232323a5a5232323a5a5a5f7a5f7f7f7f7f7a5a5959595a5a5a5a52365
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+652323a52323232323232323232323232323a5a5a52323a5959595959523232323232323232323232323a5232323a5f7a5f7f7f7f7f7a5a5a5a5a5a523a5a565
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+65232323232323f7f7f7f7f7f72323232323f7a5a5a5232323a523959595a5232323232323232323232323232323a5a5a5232323f7f7f7f7a5a5a5a523232365
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+652323232323f7f7f7f7f7f7f72323f7f7f7f72323232323232323232323a523232323232323232323232323232323232323232323f7f7f7a5a5a523f7f72365
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+6523232323f7f72323232323f723f7f7f723f72323232323232323232323f7f7f7f7f7f7f7f7f7232323232323232323232323232323232323a5a523f7f72365
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+65232323f7f723f7f723f7f7f7f7f7f7f723f72323232323232323232323f7f7f7f72323232323f72323232323232323232323232323232323a52323f7232365
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000a0a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00a0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000a0a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00a0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000a0a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00a0a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000a0a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00a0a000cccccccc8888888899999999000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3000000000000000000000000000000000000000000000000000000000000
+6523232323232323232323232323f7232323f7232323232323232323232323232323f723232323f723232323232323232323232323232323232323f7f7232365
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+652323232323232323232323232323230000000000230000000000000000000000000000000000000000000000002323f7f7f723232323232323f7f7f7232365
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+65232323232323232323232323232323f7f7f7f7f7f700f7000000232300230023002323f700f7f700000000f7f7f7f7f7f7f7f7f723f723f7f7f7f7f7232365
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+652323000000000000f7f7f7f7f7f7f7f7f7f7f700f700f700f70023f7f700f7000000f7f7f7000000000000000000f7f7f7f7f7f7f7f7000000f7f7f7f72365
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+650000000000000000000000000000000000000000000000000000230000000000f3000000000000000000000000000000000000000000f7f700000000000065
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+65000000000000000000000000000000000000000000000000000000000000000000000000000000000000f300f3f3f3f3f3f3f3f3f300000000000000000065
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+650000000000000000000000000000000000f7000000000000000000000000000000000000000000000000000000f3f3f3f3f3f3f30000000000000000000065
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+650000000000000000000000000000000000f70000000000000000000000000000000000000000000000000000000000f3f300f3f300000000f3000000000065
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+650000000000000000000000000000000000f700000000000000000000000000000000000000000000000000000000f3f3f300f3f300000000f3f30000000065
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+650000000000000000000000000000000000f700000000000000000000000000000000000000000000f3f300f3f3f3f3f3f300f3000000000000f30000000065
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+650000000000000000000000000000000000f700000000000000000000000000000000000000000000000000000000f3f3f3f3f3000000000000000000000065
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+650000000000000000000000000007000000f70000852535000047474747474747474747474700000025358500f3f3f3f307f3f3000000000000000000000065
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+650000000000000000000000000007000000f700008545550000474747474747474747474747000000455585000000f30007f3f3f300000000f3000000000065
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+650000000000000000000000000007000000f700008545153500474747474747474747474747000025155585f3f3f3f3f307f3f3f3f3f30000f3f3f3f3000065
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+65000000000000000000000000000700000000000085451555004747474747474747474747470000451555850000f3f3f307f3f3f3f3f3000000000000000065
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+651717171717171717171717171775000000f7000085455500004747474747474747474747470000004555850000f3f3f3752727272727272727272727272765
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002323000023
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+65050505050505050505050505050535000000000085455500004747474747474747474747470000004555850000f3f325050505050505050505050505050565
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000023000000
-0000000000000000f30000000000000000000000000000000000000000000000f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+65151515151515151515151515151505350000000000000000004747474747474747474747470000000000000000002505151515151515151515151515151565
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000023000000
-000000f3f3f3f3f3f3f3f300f3f300f300f300f3f3f3f3f300f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+65151515151515151515151515151515053500000000000000753737373737373737373737377500000000000000250515151515151515151515151515151565
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002323000000
-f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f300000000000000000000
+65151515151515151515151515151515150505050505050505050505050505050505050505050505050505050505051515151515151515151515151515151565
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002300000003
 __gff__
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008080008080000000000000000000000080808080808080804000000000000000000000000000000000000000000000000000000000000000000000000000000000102008080000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008080008080000000000000000000000080808080808080804000000000000000808080808080800040000000000000000000000000000000000000000000000000102008080000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
-4250505050505050505050505050505050505050505050505050503250505050505050505050505050505050505050505050505032505050323250505050324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-4250505050505050505050505050505050505050505050505032323232323232323232325050505050325050325050503250503250505050505050505050324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-4232505050505050503232323250505032323232505050503232323232323232323232323232505032323250325032505032323250503232325050505050324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-4232325050505032323232323232323232323232325050323232323232323232323232323232323232323250503250503232325032323232323232505050324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-423232323232323232323232323232323232323232323232323232323232323232327f7f7f7f7f7f7f7f7f50505050323232323232323232323232323250324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-423232323232323232323232323232323232327f323250505050323232323232323232323232323232323232323232323232323232323232323232323232324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-423232323232323232323232323232323232327f32325050505050323232323232323232323232323232323232327f7f7f7f7f7f7f323232323232323232324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-4232323232323232323232323232323232327f7f3232323250505050503232323232323232323232323232323232327f7f7f7f7f7f7f3232323232323232324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-423232323232327f7f7f7f7f7f32323232327f3232323232323232505032323232323232323232323232323232323232323232327f7f7f7f7f7f7f7f3232324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-4232323232327f7f7f7f7f7f7f32327f7f327f323232323232323232323232323232323232323232323232323232323232323232327f7f7f323232327f7f324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-42323232327f7f32323232327f327f7f7f327f32323232323232323232327f7f7f7f7f7f7f7f7f3232323232323232323232323232323232323232327f7f324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-423232327f7f327f7f327f7f7f7f7f7f7f327f32323232323232323232327f7f7f7f32323232327f32323232323232323232323232323232323232327f32324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+42494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949324949493232494949494942555555555555555555555555554a4a4a550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+424949494949494949494949494949494949494949494949494932324a324a4a4a4a4a4a494949494a3249493249494932494932494949494949494949493242555555555555555555554a5555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+4232494949494949494a4a4a4a494949324a494949494949494932324a4a4a4a4a4a4a4a3232494a4a323249324932494932323249493232324949494949324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+423232494949494a4a4a4a323232324a32324a493249494949493232323232323232324a4a4a324a3232324949324949324a4a4932323232324a4a4949493242555555555555554a5555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+4232324a3232323232324a32324a323232324a4a32324a4a323232323232323232327f7f7f4a4a4a7f7f7f4949495a5a324a323232323232324a4a4a3249324255555555554a55555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+423232324a324a3232323232323232323232327f3232494a4a4a4a32323232323232323232324a4a3232324a5a4a4a4a324a32323232323232324a4a3232324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+4232324a3232323232323232323232323232324a3232494949494a4a323232323232323232324a4a3232324a4a4a7f4a7f7f7f7f7f3232323232324a4a4a324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+4232323232323232323232323232323232327f7f3232324a4949494949323232323232323232323232325a3232324a7f4a7f7f7f7f7f32323232324a32324a4255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+423232323232327f7f7f7f7f7f32323232327f324a4a3232324a3249494a4a3232323232323232323232323232324a4a4a3232327f7f7f7f7f7f4a4a3232324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+4232323232327f7f7f7f7f7f7f32327f7f4a7f32323232323232323232324a323232323232323232323232323232323232323232327f7f7f4a4a4a327f7f324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+42323232327f7f32323232327f327f7f7f327f32323232323232323232327f7f7f7f7f7f7f7f7f323232323232323232323232323232323232324a327f7f324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+423232327f7f327f7f327f7f7f7f7f7f7f327f32323232323232323232327f7f7f7f32323232327f32323232323232323232323232323232324a32327f32324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 42323232323232323232323232327f3232327f3232323232323232323232323232327f323232327f323232323232323232323232323232323232327f7f32324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4232323232323232323232323232323232327f7f32323232327f32320000327f327f7f3232327f7f007f7f32323232327f7f7f323232323232327f7f7f32324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 423232323232323232323232323232327f7f7f7f7f7f007f3200003232003200323232327f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f327f327f7f7f7f7f32324255555555555555555555555555555555550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
