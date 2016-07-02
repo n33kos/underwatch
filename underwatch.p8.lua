@@ -9,8 +9,8 @@ player_entities = {}
 projectiles = {}
 
 drag = {1.05,1.05}
-bounce = {0.1,0.1}
-gravity = {0,-0.35}
+bounce = {0.9,0.9}
+gravity = {0,-0.30}
 time = 0
 
 cam = {}
@@ -33,6 +33,10 @@ currmap.dim.x = 64
 currmap.dim.y = 32
 
 game = {}
+game.firstload = true
+game.state = "menu"
+game.menuselection = 0
+game.selectedcharacter = 0
 game.ispaused = false
 game.kills = {}
 game.kills.team1 = 0
@@ -51,7 +55,7 @@ game.objective.team2_on_point = {}
 --creation functions-----------------------------------
 ---------------------------------------------------
 function make_player()
-	temp_entity = copy(rainhorse)
+	temp_entity = copy(all_characters[flr(game.selectedcharacter%#all_characters)+1])
 	temp_entity.team = "team1"
 	for key,val in pairs(temp_entity.primary) do
 		val.parent = "team1"
@@ -201,14 +205,15 @@ function ai_movement_behavior(entity)
 		elseif entity.pos.x > 312 then
 			entity.velocity.x -= rnd(entity.speed)+rnd(entity.speed)
 		else
-			if rnd(2) > 1 then
-				entity.velocity.x += rnd(entity.speed)
-			else
-				entity.velocity.x -= rnd(entity.speed)
-			end
-
-			if rnd(10) < 0.15 and entity.isjumping != true then
-				entity.velocity.y -= rnd(entity.jumpheight)
+			if entity.target then
+				if entity.target.pos.x > entity.pos.x then
+					entity.velocity.x += rnd(entity.speed)+rnd(entity.speed)
+				else
+					entity.velocity.x -= rnd(entity.speed)+rnd(entity.speed)
+				end
+				if entity.isjumping != true and (rnd(10) < 1 or (entity.velocity.x < 0.2 and entity.velocity.x > -0.2)) then
+					entity.velocity.y -= rnd(entity.jumpheight)
+				end
 			end
 		end
 		if entity.isjumping != true and (rnd(10) < 1 or (entity.velocity.x < 0.2 and entity.velocity.x > -0.2)) then
@@ -234,9 +239,7 @@ function ai_attack_behavior(entity)
 		if entity.shottimer <= 0 then
 			for key,val in pairs(entity.primary) do
 				entity.shottimer = val.firedelay
-				if (entity.character == "robogirl" and entity.shields > 0) or entity.character != "robogirl" then
-					make_projectile(entity, val, true)
-				end
+				make_projectile(entity, val, true)
 			end
 		end
 	elseif entity.attack_behavior == "alternate" then
@@ -269,9 +272,7 @@ function ai_attack_behavior(entity)
 			if entity.shottimer <= 0 and time%2 == 0 then
 				for key,val in pairs(entity.primary) do
 					entity.shottimer = val.firedelay
-					if (entity.character == "robogirl" and entity.shields > 0) or entity.character != "robogirl" then
-						make_projectile(entity, val, true)
-					end
+					make_projectile(entity, val, true)
 				end
 			end
 			if entity.alternateshottimer <= 0 and time%2 == 1 then
@@ -306,6 +307,18 @@ function ai_get_target(entity)
 		else
 			if otherentity.team != entity.team then
 				add(otherteam, otherentity)
+			end
+		end
+	end
+	closest_target = nil
+	for key,val in pairs(otherteam) do
+		if entity.character == "grace" then
+			if closest_target == nil or val.hp/val.maxhp < closest_target.hp/closest_target.maxhp then
+				closest_target = val
+			end
+		else
+			if closest_target == nil or abs(val.pos.x - entity.pos.x) < abs(closest_target.pos.x - entity.pos.x) then
+				closest_target = val
 			end
 		end
 	end
@@ -429,8 +442,8 @@ function apply_ladder_collision(entity)
 	val = mget(flr((entity.pos.x+entity.sca.x/2)/8), flr((entity.pos.y+entity.sca.y/2)/8))
 	if fget(val, 6) == true then
 		entity.onladder = true
-		entity.velocity.y = 0
 		entity.isjumping = false
+		entity.velocity.y = 0
 	else
 		entity.onladder = false
 	end
@@ -660,8 +673,6 @@ end
 --------------------------------------------------
 function _init()
 	cls()
-	make_player()
-	make_ai()
 end
 
 function _update()
@@ -673,7 +684,7 @@ function _update()
 		for key,entity in pairs(ai_entities) do
 			cleanup(entity)
 			assess_hp(entity, ai_entities)
-			if entity.target == nil then entity.target = ai_get_target(entity) end
+			entity.target = ai_get_target(entity)
 			ai_movement_behavior(entity)
 			ai_attack_behavior(entity)
 			if entity.onladder == false then
@@ -691,7 +702,7 @@ function _update()
 		for key,entity in pairs(player_entities) do
 			cleanup(entity)
 			assess_hp(entity, player_entities)
-			if entity.target == nil then entity.target = ai_get_target(entity) end
+			entity.target = ai_get_target(entity)
 			if entity.onladder == false then
 				apply_gravity(entity)
 			end
@@ -726,6 +737,7 @@ function _draw()
 	if game.ispaused == false then
 		cls()
 		time += 1
+		if time > 2047 then time = 0 end
 
 		--camera
 		if #player_entities > 0 then
@@ -788,94 +800,118 @@ function _draw()
 	end
 
 	--gui
-	--print(game.kills.team1.."-"..game.kills.team2, cam.pos.x, cam.pos.y)
-	print("capture: "..flr(game.objective.team1capturepercentage).."%-"..flr(game.objective.team2capturepercentage).."%", cam.pos.x, cam.pos.y, 6)
-	print("control: "..flr(game.objective.team1controlpercentage).."%-"..flr(game.objective.team2controlpercentage).."%", cam.pos.x, cam.pos.y+6, 6)
-	if player_entities[1] then
-		print(player_entities[1].character, cam.pos.x+64, cam.pos.y, 6)
-	end
+	if game.state == "menu" then
+		rectfill(cam.pos.x+8, cam.pos.y+8, cam.pos.x+120, cam.pos.y+120, 0)
+		rect(cam.pos.x+6, cam.pos.y+6, cam.pos.x+122, cam.pos.y+122, 1)
+		rect(cam.pos.x+8, cam.pos.y+8, cam.pos.x+120, cam.pos.y+120, 12)
 
-	--player feedback------------------------------------
-	-----------------------------------------------------
-	if btn(0) then
-		--left
-		for key,entity in pairs(player_entities) do
-			entity.velocity.x -= entity.speed
-			entity.spriteflip.x = true
+		print("press Z or X to play", cam.pos.x+20, cam.pos.y+110, 12)
+		if flr(game.menuselection%2) == 0 then
+			print("character: "..all_characters[flr(game.selectedcharacter%#all_characters)+1].character, cam.pos.x+20, cam.pos.y+40, 12)
 		end
-	end
-	if btn(1) then
-		--right
-		for key,entity in pairs(player_entities) do
-			entity.velocity.x += entity.speed
-			entity.spriteflip.x = false
+
+		if btn(0) then game.selectedcharacter += 0.25 end
+		if btn(1) then game.selectedcharacter -= 0.25 end
+		if btn(4) or btn(5) then game.state = "play" end
+	elseif game.state == "play" then
+
+		if game.firstload then
+			game.firstload = false
+			make_player()
+			make_ai()
 		end
-	end
-	if btn(2) then
-		--up
-		for key,entity in pairs(player_entities) do
-			if entity.isjumping == false then
-				entity.velocity.y -= entity.jumpheight
-				entity.isjumping = true
+
+		print("capture: "..flr(game.objective.team1capturepercentage).."%-"..flr(game.objective.team2capturepercentage).."%", cam.pos.x, cam.pos.y, 6)
+		print("control: "..flr(game.objective.team1controlpercentage).."%-"..flr(game.objective.team2controlpercentage).."%", cam.pos.x, cam.pos.y+6, 6)
+		if player_entities[1] then
+			print(player_entities[1].character, cam.pos.x+64, cam.pos.y, 6)
+		end
+
+		--player feedback------------------------------------
+		-----------------------------------------------------
+		if btn(0) then
+			--left
+			for key,entity in pairs(player_entities) do
+				entity.velocity.x -= entity.speed
+				entity.spriteflip.x = true
 			end
 		end
-	end
-	if btn(3) then
-		--down
-		for key,entity in pairs(player_entities) do
-			if entity.isjumping == false then
-				entity.onladder = false
-				entity.isjumping = true
+		if btn(1) then
+			--right
+			for key,entity in pairs(player_entities) do
+				entity.velocity.x += entity.speed
+				entity.spriteflip.x = false
 			end
 		end
-	end
-	if btn(4) then
-		--take control of ai character
-		if #player_entities == 0 and #ai_entities > 0 then
-			add(player_entities, ai_entities[1])
-			del(ai_entities, ai_entities[1])
-		end
-
-		--one
-		for key,entity in pairs(player_entities) do
-			--counter
-			entity.shottimer -= 1
-	
-			--primary fire
-			if entity.shottimer <= 0 then
-				for key,val in pairs(entity.primary) do
-					entity.shottimer = val.firedelay
-					make_projectile(entity, val, true)
+		if btn(2) then
+			--up
+			for key,entity in pairs(player_entities) do
+				if entity.isjumping == false then
+					entity.velocity.y -= entity.jumpheight
+					entity.isjumping = true
 				end
 			end
-
 		end
-	end
-	if btn(5) then
-		for key,entity in pairs(player_entities) do
-			--counter
-			entity.alternateshottimer -= 1
+		if btn(3) then
+			--down
+			for key,entity in pairs(player_entities) do
+				if entity.isjumping == false then
+					entity.onladder = false
+					entity.isjumping = true
+				end
+			end
+		end
+		if btn(4) then
+			--take control of ai character
+			if #player_entities == 0 and #ai_entities > 0 then
+				add(player_entities, ai_entities[1])
+				del(ai_entities, ai_entities[1])
+			end
 
-			--alternate fire
-			if entity.alternateshottimer <= 0 then
-				for key,val in pairs(entity.alternate) do
-					entity.alternateshottimer = val.firedelay
-					make_projectile(entity, val, true)
+			--one
+			for key,entity in pairs(player_entities) do
+				--counter
+				entity.shottimer -= 1
+
+				--primary fire
+				if entity.shottimer <= 0 then
+					for key,val in pairs(entity.primary) do
+						--entity.shottimer = val.firedelay
+						entity.shottimer = 5
+						make_projectile(entity, val, true)
+					end
 				end
 
-				if entity.character == "rainhorse" or entity.character == "robogirl" and entity.shields > 0 then
-					entity.shielded = true
-				end
+			end
+		elseif btn(5) then
+			for key,entity in pairs(player_entities) do
+				--counter
+				entity.alternateshottimer -= 1
 
-				if entity.character == "harvester" then
-					if entity.spriteflip.x then
-						entity.pos.x -= 64
-					else
-						entity.pos.x += 64
+				--alternate fire
+				if entity.alternateshottimer <= 0 then
+					for key,val in pairs(entity.alternate) do
+						--entity.alternateshottimer = val.firedelay
+						entity.alternateshottimer = 5
+						make_projectile(entity, val, true)
+					end
+
+					if entity.character == "rainhorse" or entity.character == "robogirl" and entity.shields > 0 then
+						entity.shielded = true
+					end
+
+					if entity.character == "harvester" then
+						if entity.spriteflip.x then
+							entity.pos.x -= 64
+						else
+							entity.pos.x += 64
+						end
 					end
 				end
 			end
 		end
+	elseif game.state == "score" then
+		game.ispaused = true
 	end
 end
 
@@ -922,7 +958,6 @@ char_template.spriteflip = {}
 soldier24 = {}
 soldier24 = copy(char_template)
 soldier24.character = "soldier24"
-soldier24.movement_behavior = "follow"
 soldier24.animations = {}
 	soldier24.animations.idle = {0}
 	soldier24.animations.walk = {1,1,1,1,2,2,2,2}
@@ -1260,7 +1295,6 @@ zohan.alternate = {}
 harvester = {}
 harvester = copy(char_template)
 harvester.character = "harvester"
-harvester.movement_behavior = "follow"
 harvester.jumpheight = 5
 harvester.hp = 5
 harvester.maxhp = 5
@@ -1429,7 +1463,7 @@ robogirl.alternate = {}
 		robogirl.alternate[1].maxage = 2
 		robogirl.alternate[1].bounce = false
 		robogirl.alternate[1].damage = 0
-		robogirl.alternate[1].firedelay = 0 --draw frames between shots
+		robogirl.alternate[1].firedelay = 1 --draw frames between shots
 		robogirl.alternate[1].velocity = {}
 			robogirl.alternate[1].velocity.x = 0
 			robogirl.alternate[1].velocity.y = 0
