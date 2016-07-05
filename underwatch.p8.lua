@@ -706,6 +706,9 @@ function _update()
 				apply_ladder_collision(entity)
 				apply_projectile_entity_collision(entity)
 				set_animation_frame(entity)
+				--counters
+				entity.shottimer -= 1
+				entity.alternateshottimer -= 1
 			else
 				if entity.team == "team1" then
 					game.kills.team2 += 1
@@ -967,8 +970,6 @@ function _draw()
 		if btn(4) then
 			--one
 			for key,entity in pairs(player_entities) do
-				--counter
-				entity.shottimer -= 1
 
 				--primary fire
 				if entity.shottimer <= 0 then
@@ -981,8 +982,6 @@ function _draw()
 			end
 		elseif btn(5) then
 			for key,entity in pairs(player_entities) do
-				--counter
-				entity.alternateshottimer -= 1
 
 				--alternate fire
 				if entity.alternateshottimer <= 0 then
