@@ -3,9 +3,15 @@ Underwatch is an objective based team shooter demake coded in lua for Pico-8.
 
 ![underwatch png](http://www.lexaloffle.com/bbs/cposts/2/24601.p8.png "Underwatch PNG")
 
-Any resemblance to existing copyrighted material is purely coincidental and unintentional. ;D
+Any resemblance to existing copyrighted material is purely coincidental and unintentional.
 
 # CHANGELOG
+version 0.11
+- Corrected bug allowing grace to heal shields
+- Improved performance
+- Improved ai behavior
+- Updated Factory Map
+
 version 0.10
 - Added splash screen
 - Added game settings menu and variables
