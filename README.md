@@ -1,7 +1,7 @@
 # Underwatch
 Underwatch is an objective based team shooter demake coded in lua for Pico-8.
 
-![underwatch png](http://www.lexaloffle.com/bbs/cposts/2/24601.p8.png "Underwatch PNG")
+![underwatch png](http://www.lexaloffle.com/bbs/cposts/2/24786.p8.png "Underwatch PNG")
 
 Any resemblance to existing copyrighted material is purely coincidental and unintentional.
 
