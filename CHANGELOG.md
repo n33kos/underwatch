@@ -1,6 +1,10 @@
 # CHANGELOG
 version 0.12
 - Balanced character stats
+- Added 2 characters
+- Improved Zinra map
+- Added weapon knockback functionality
+- Began implementing new map
 
 version 0.11
 - Corrected bug allowing grace to heal shields
