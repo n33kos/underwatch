@@ -3,6 +3,13 @@ version 0.13
 - Optimized to reduce tokens
 - Improved projectile physics
 - Improved performance slightly
+- Constrained camera to map area
+- Adjusted camera offset to center player on screen
+- Rearranged main menu
+- Prevented AI from selecting same character as player
+- Added healing indicator
+- AI entities now respawn as same character
+- Added parallax bg
 
 version 0.12
 - Balanced character stats
