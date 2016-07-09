@@ -1,4 +1,9 @@
 # CHANGELOG
+version 0.13
+- Optimized to reduce tokens
+- Improved projectile physics
+- Improved performance slightly
+
 version 0.12
 - Balanced character stats
 - Added 2 characters

@@ -7,8 +7,9 @@ __lua__
 --globals-------------------------------------
 ----------------------------------------------
 ai_entities = {}
-player_entities = {}
+player_entity = {}
 projectiles = {}
+all_entities = {}
 
 drag = {1.05,1.05}
 bounce = {0.9,0.9}
@@ -18,7 +19,7 @@ time = 0
 cam = {}
 cam.pos = {x = 64, y = 128}
 cam.offset = {x = 64, y = 110}
-cam.followdistance = {x = 1, y = 8}
+cam.followdistance = {x = 1, y = 1}
 
 game = {
 	currmap = {},
@@ -49,26 +50,25 @@ game = {
 		team2_on_point = {}
 	}
 }
+
 --creation functions-----------------------------------
 ---------------------------------------------------
 function make_player()
-	temp_entity = copy(all_characters[flr(game.selectedcharacter%#all_characters)+1])
-	--temp_entity.ismortal = false -- god mode
-	temp_entity.isplayer = true
-	temp_entity.team = "team1"
-	for key,val in pairs(temp_entity.primary) do
+	player_entity = copy(all_characters[flr(game.selectedcharacter%#all_characters)+1])
+	--player_entity.ismortal = false -- god mode
+	player_entity.isplayer = true
+	player_entity.team = "team1"
+	for key,val in pairs(player_entity.primary) do
 		val.parent = "team1"
 		val.firedelay *= game.maxfirerate - game.globalfirerate
 	end
-	for key,val in pairs(temp_entity.alternate) do
+	for key,val in pairs(player_entity.alternate) do
 		val.parent = "team1"
 		val.firedelay *= game.maxfirerate - game.globalfirerate
 	end
-	spawn = find_spawn_point(temp_entity)
-	temp_entity.pos.x = spawn[1]
-	temp_entity.pos.y = spawn[2]
-	add(player_entities, temp_entity)
-	cam.target = temp_entity
+	spawn = find_spawn_point(player_entity)
+	player_entity.pos.x = spawn[1]
+	player_entity.pos.y = spawn[2]
 end
 
 function make_ai()
@@ -151,12 +151,12 @@ end
 --ai functions-------------------------------------
 ---------------------------------------------------
 function ai_movement_behavior(entity)
-	if entity.pos.x < 192 and entity.class != "support" and ((game.team == "team1" and #game.objective.team1_on_point == nil) or (game.team == "team2" and #game.objective.team2_on_point  == nil)) then
+	if entity.pos.x < 192+rnd(10) and entity.class != "support" then
 		entity.velocity.x += rnd(entity.speed)+rnd(entity.speed)
-	elseif entity.pos.x > 312 and entity.class != "support" and ((game.team == "team1" and #game.objective.team1_on_point  == nil) or (game.team == "team2" and #game.objective.team2_on_point  == nil)) then
+	elseif entity.pos.x > 312-rnd(10) and entity.class != "support" then
 		entity.velocity.x -= rnd(entity.speed)+rnd(entity.speed)
 	else
-		if type(entity.target) then
+		if type(entity.target) != "nil" then
 			if entity.team == "team1" then
 				preferredoffset = 15
 			else
@@ -224,7 +224,7 @@ end
 
 function ai_get_target(entity)
 	otherteam = {}
-	for key,otherentity in pairs(ai_entities) do
+	for key,otherentity in pairs(all_entities) do
 		if entity.class == "support" then
 			if otherentity.team == entity.team then
 				add(otherteam, otherentity)
@@ -238,7 +238,7 @@ function ai_get_target(entity)
 	closest_target = nil
 	for key,val in pairs(otherteam) do
 		if entity.class == "support" then
-			if closest_target == nil or (val.hp/val.maxhp < closest_target.hp/closest_target.maxhp and val.class != "support") then
+			if closest_target == nil or (val.hp < closest_target.hp) and closest_target.class != "support" then
 				closest_target = val
 			end
 		else
@@ -317,37 +317,33 @@ function apply_projectile_map_collision(bullet)
 		--bottom
 		val = mget(bottom[1]+game.currmap.cel.x, bottom[2]+game.currmap.cel.y)
 		if fget(val, 7) == true then
-			if bullet.bounce then
-				bullet.velocity.y *= -bounce[2]
-			end
+			bullet.velocity.y *= -bounce[2]
 			bullet.pos.y = (bottom[2]-1)*8 -- make sure the bullet stays within bounds
+			return
 		end
 
 		--left
 		val = mget(left[1]+game.currmap.cel.x, left[2]+game.currmap.cel.y)
 		if fget(val, 7) == true then
-			if bullet.bounce then
-				bullet.velocity.x *= -bounce[1]
-			end
+			bullet.velocity.x *= -bounce[1]
 			bullet.pos.x = (left[1]+1)*8 -- make sure the bullet stays within bounds
+			return
 		end
 
 		--right
 		val = mget(right[1]+game.currmap.cel.x, right[2]+game.currmap.cel.y)
 		if fget(val, 7) == true then
-			if bullet.bounce then
-				bullet.velocity.x *= -bounce[1]
-			end
+			bullet.velocity.x *= -bounce[1]
 			bullet.pos.x = (right[1]-1)*8 -- make sure the bullet stays within bounds
+			return
 		end
 
 		--top
 		val = mget(top[1]+game.currmap.cel.x, top[2]+game.currmap.cel.y)
 		if fget(val, 7) == true then
-			if bullet.bounce then
-				bullet.velocity.y *= -bounce[2]
-			end
+			bullet.velocity.y *= -bounce[2]
 			bullet.pos.y = (top[2]+1)*8 -- make sure the bullet stays within bounds
+			return
 		end
 	else
 		val = mget(flr(bullet.pos.x/8)+game.currmap.cel.x, flr(bullet.pos.y/8)+game.currmap.cel.y)
@@ -407,7 +403,7 @@ function apply_projectile_entity_collision(entity)
 			if entity.shielded and entity.shields > 0 and bullet.damage > 0 then
 				entity.shields -= bullet.damage
 			else
-				entity.hp -= bullet.damage
+				entity.hp = min(entity.hp-bullet.damage, entity.maxhp)
 			end
 			if bullet.damage > 0 then
 				del(projectiles, bullet)
@@ -431,9 +427,14 @@ function draw_map()
 end
 
 function move_camera()
+	if player_entity.isalive then
+		cam.target = player_entity
+	else
+		cam.target = ai_entities[1]
+	end
 	if cam.target then
 		cam.pos.x = cam.pos.x + (cam.target.pos.x - (cam.pos.x+cam.offset.x))/cam.followdistance.x
-		cam.pos.y = cam.pos.y + (cam.target.pos.y - (cam.pos.y+cam.offset.y))/cam.followdistance.y
+		cam.pos.y = max(cam.pos.y + (cam.target.pos.y - (cam.pos.y+cam.offset.y))/cam.followdistance.y, 0)
 	end
 	camera(cam.pos.x,cam.pos.y)
 end
@@ -481,7 +482,6 @@ end
 
 function draw_objective_rect()
 	--capture indicator
-	--rectfill(cam.pos.x+59, cam.pos.y, cam.pos.x+69, cam.pos.y+6, 5)
 	rectfill(cam.pos.x+59+flr((100 - game.objective.team1capturepercentage)/20), cam.pos.y, cam.pos.x+64, cam.pos.y+6, 7)
 	rectfill(cam.pos.x+64, cam.pos.y, cam.pos.x+64+flr(game.objective.team2capturepercentage/20),cam.pos.y+6, 7)
 
@@ -505,7 +505,20 @@ function draw_kills()
 	print(game.kills.team2, cam.pos.x+120-flr(#(game.kills.team2.."")*4), cam.pos.y+2, 8)
 end
 
-function draw_menu()
+function draw_main_menu_screen()
+	if game.firstload then
+		time = 0
+		game.kills.team1 = 0
+		game.kills.team2 = 0
+		game.objective.team1capturepercentage = 0
+		game.objective.team2capturepercentage = 0
+		game.objective.team1controlpercentage = 0
+		game.objective.team2controlpercentage = 0
+		make_player()
+		make_ai()
+		game.firstload = false
+	end
+
 	--window
 	rectfill(cam.pos.x+8, cam.pos.y+8, cam.pos.x+120, cam.pos.y+120, 0)
 	rect(cam.pos.x+6, cam.pos.y+6, cam.pos.x+122, cam.pos.y+122, 1)
@@ -552,7 +565,7 @@ function draw_menu()
 		print("up - flight", cam.pos.x+46, cam.pos.y+113, drcol)
 	end
 
-
+	--controls
 	if btnp(2) then
 		game.menuselection = max(0,game.menuselection-1)
 		sfx(0)
@@ -561,53 +574,174 @@ function draw_menu()
 		game.menuselection = min(#menu-1,game.menuselection+1)
 		sfx(0)
 	end
+	if btnp(0) then
+		if game.menuselection == 0 then
+			game.globalgamespeed -= 0.1
+		elseif game.menuselection == 1 then
+			game.globalgravity -= 0.1
+		elseif game.menuselection == 2 then
+			game.globalfirerate = max(0.1, game.globalfirerate-0.1)
+		elseif game.menuselection == 3 then
+			game.selectedmap += 1
+		elseif game.menuselection == 4 then
+			game.selectedcharacter += 1
+		end
+		sfx(0)
+	end
+	if btnp(1) then
+		if game.menuselection == 0 then
+			game.globalgamespeed += 0.1
+		elseif game.menuselection == 1 then
+			game.globalgravity += 0.1
+		elseif game.menuselection == 2 then
+			game.globalfirerate = min(game.maxfirerate, game.globalfirerate+0.1)
+		elseif game.menuselection == 3 then
+			game.selectedmap -= 1
+		elseif game.menuselection == 4 then
+			game.selectedcharacter -= 1
+		end
+		sfx(0)
+	end
+	if btnp(4) or btnp(5) then
+		game.state = "play"
+		game.firstload = true
+		sfx(1)
+	end
+	game.currmap = all_maps[flr(game.selectedmap%#all_maps)+1]
+end
+
+function draw_title_screen()
+	rectfill(cam.pos.x+8, cam.pos.y+28, cam.pos.x+120, cam.pos.y+84, 0)
+	rect(cam.pos.x+6, cam.pos.y+26, cam.pos.x+122, cam.pos.y+86, 1)
+	rect(cam.pos.x+8, cam.pos.y+28, cam.pos.x+120, cam.pos.y+84, 12)
+
+	--logo
+	sspr(56, 48, 8, 8, cam.pos.x+54, cam.pos.y+40, 16, 16)
+	sspr(0, 48, 56, 8, cam.pos.x+15, cam.pos.y+60, 100, 12)
+
+	print("press any key", cam.pos.x+36, cam.pos.y+90, 12)
+
+	if btn(0) or btn(1) or btn(2) or btn(3) or btn(4) or btn(5) then
+		game.state = "menu"
+	end
+end
+
+function draw_play_screen()
+	game.ispaused = false
+
+	if game.firstload then
+		game.firstload = false
+		time = 0
+		ai_entities = {}
+		player_entity = {}
+		game.kills.team1 = 0
+		game.kills.team2 = 0
+		game.objective.team1capturepercentage = 0
+		game.objective.team2capturepercentage = 0
+		game.objective.team1controlpercentage = 0
+		game.objective.team2controlpercentage = 0
+		make_player()
+		make_ai()
+	end
+
+	draw_objective_rect()
+	draw_kills()
+
+	--player feedback------------------------------------
+	-----------------------------------------------------
+	if btn(0) then
+		--left
+		player_entity.velocity.x -= player_entity.speed
+		player_entity.spriteflip.x = true
+	end
+	if btn(1) then
+		--right
+		player_entity.velocity.x += player_entity.speed
+		player_entity.spriteflip.x = false
+	end
+	if btn(2) then
+		--up
+		if player_entity.canfly then
+			player_entity.velocity.y -= 0.5;
+		elseif player_entity.isjumping == false then
+			player_entity.velocity.y -= player_entity.jumpheight
+			player_entity.isjumping = true
+		end
+	end
+	if btn(3) then
+		--down
+		player_entity.onladder = false
+		player_entity.isjumping = true
+	end
+	if btn(4) then
+		--primary fire
+		if player_entity.shottimer <= 0 then
+			for key,val in pairs(player_entity.primary) do
+				player_entity.shottimer = val.firedelay
+				make_projectile(player_entity, val)
+			end
+		end
+	elseif btn(5) then
+		--alternate fire
+		if player_entity.alternateshottimer <= 0 then
+			for key,val in pairs(player_entity.alternate) do
+				player_entity.alternateshottimer = val.firedelay
+				make_projectile(player_entity, val)
+			end
+
+			if player_entity.character == "rainhorse" or player_entity.character == "robogirl" and player_entity.shields > 0 then
+				player_entity.shielded = true
+			end
+
+			if player_entity.character == "harvester" then
+				if player_entity.spriteflip.x then
+					player_entity.pos.x -= 64
+				else
+					player_entity.pos.x += 64
+				end
+			end
+		end
+	end
+end
+
+function draw_score_screen()
+	game.ispaused = true
+	game.firstload = true
+	
+	--window
+	rectfill(cam.pos.x+8, cam.pos.y+12, cam.pos.x+120, cam.pos.y+120, 0)
+	rect(cam.pos.x+6, cam.pos.y+10, cam.pos.x+122, cam.pos.y+122, 1)
+	rect(cam.pos.x+8, cam.pos.y+12, cam.pos.x+120, cam.pos.y+120, 12)
+
+	--logo
+	sspr(0, 48, 56, 8, cam.pos.x+15, cam.pos.y+30, 100, 12)
+
+	if game.objective.team1controlpercentage > game.objective.team2controlpercentage then
+		print("win", cam.pos.x+60, cam.pos.y+50, 12)
+	else
+		print("defeat", cam.pos.x+55, cam.pos.y+50, 8)
+	end
+	
+	print("kills: ", cam.pos.x+15, cam.pos.y+70, 6)
+	print(game.kills.team1, cam.pos.x+60, cam.pos.y+70, 12)
+	print(game.kills.team2, cam.pos.x+90, cam.pos.y+70, 8)
+
+	print("control: ", cam.pos.x+15, cam.pos.y+80, 6)
+	print(flr(game.objective.team1controlpercentage).."%", cam.pos.x+60, cam.pos.y+80, 12)
+	print(flr(game.objective.team2controlpercentage).."%", cam.pos.x+90, cam.pos.y+80, 8)
+
+	print("press z+x to restart", cam.pos.x+24, cam.pos.y+110, 1)
+	if btn(4) and btn(5) then game.state = "menu" end
 end
 
 --game functions-----------------------------------
 ---------------------------------------------------
-function assess_hp(entity, table)
-	--area heal
-	if entity.character == "sk8rboi" then
-		for key,entity2 in pairs(ai_entities) do
-			if abs(entity.pos.x - entity2.pos.x) <= 12 and abs(entity.pos.y - entity2.pos.y) <= 12 and entity2.team == entity.team and entity2 != entity then
-				entity2.hp += 0.5
-			end
-		end
-		for key,entity2 in pairs(player_entities) do
-			if abs(entity.pos.x - entity2.pos.x) <= 12 and abs(entity.pos.y - entity2.pos.y) <= 12 and entity2.team == entity.team and entity2 != entity then
-				entity2.hp += 0.5
-			end
-		end
-	end
-	--max hp
-	if entity.hp > entity.maxhp then
-		entity.hp = entity.maxhp
-	end
-end
-
 function assess_capture()
 	if game.state == "play" then
-
 		game.objective.team1_on_point = {}
 		game.objective.team2_on_point = {}
 		--is on point count
-		for key,entity in pairs(ai_entities) do
-			val = mget(flr((entity.pos.x+entity.sca.x/2)/8), flr((entity.pos.y+entity.sca.y/2)/8))
-			if entity.team == "team1" then
-				if fget(val, 3) then
-					add(game.objective.team1_on_point, entity)
-				else
-					del(game.objective.team1_on_point, entity)
-				end
-			else
-				if fget(val, 3) then
-					add(game.objective.team2_on_point, entity)
-				else
-					del(game.objective.team2_on_point, entity)
-				end
-			end
-		end
-		for key,entity in pairs(player_entities) do
+		for key,entity in pairs(all_entities) do
 			val = mget(flr((entity.pos.x+entity.sca.x/2)/8), flr((entity.pos.y+entity.sca.y/2)/8))
 			if entity.team == "team1" then
 				if fget(val, 3) then
@@ -626,14 +760,14 @@ function assess_capture()
 
 		--capture logic
 		if #game.objective.team1_on_point > 0 and #game.objective.team2_on_point <= 0 then
-			game.objective.team1capturepercentage += game.objective.capturespeed*game.globalgamespeed*#game.objective.team1_on_point
-			game.objective.team2capturepercentage -= game.objective.capturespeed*game.globalgamespeed*#game.objective.team1_on_point
+			game.objective.team1capturepercentage = min(game.objective.team1capturepercentage + game.objective.capturespeed*game.globalgamespeed*#game.objective.team1_on_point, 100)
+			game.objective.team2capturepercentage = max(game.objective.team2capturepercentage - game.objective.capturespeed*game.globalgamespeed*#game.objective.team1_on_point, 0)
 		elseif #game.objective.team2_on_point > 0 and #game.objective.team1_on_point <= 0 then
-			game.objective.team1capturepercentage -= game.objective.capturespeed*game.globalgamespeed*#game.objective.team2_on_point
-			game.objective.team2capturepercentage += game.objective.capturespeed*game.globalgamespeed*#game.objective.team2_on_point
+			game.objective.team1capturepercentage = max(game.objective.team1capturepercentage - game.objective.capturespeed*game.globalgamespeed*#game.objective.team2_on_point, 0)
+			game.objective.team2capturepercentage = min(game.objective.team2capturepercentage + game.objective.capturespeed*game.globalgamespeed*#game.objective.team2_on_point, 100)
 		else
-			game.objective.team1capturepercentage -= game.objective.capturespeed*game.globalgamespeed
-			game.objective.team2capturepercentage -= game.objective.capturespeed*game.globalgamespeed
+			game.objective.team1capturepercentage = max(game.objective.team1capturepercentage - game.objective.capturespeed*game.globalgamespeed, 0)
+			game.objective.team2capturepercentage = max(game.objective.team2capturepercentage - game.objective.capturespeed*game.globalgamespeed, 0)
 		end
 
 		--control logic
@@ -643,19 +777,183 @@ function assess_capture()
 			game.objective.team2controlpercentage += game.objective.controlspeed*game.globalgamespeed*#game.objective.team2_on_point
 		end
 
-		--min
-		if game.objective.team1capturepercentage < 0 then game.objective.team1capturepercentage = 0 end
-		if game.objective.team2capturepercentage < 0 then game.objective.team2capturepercentage = 0 end
-		if game.objective.team1controlpercentage < 0 then game.objective.team1controlpercentage = 0 end
-		if game.objective.team2controlpercentage < 0 then game.objective.team2controlpercentage = 0 end
-		--max
-		if game.objective.team1capturepercentage > 100 then game.objective.team1capturepercentage = 100 end
-		if game.objective.team2capturepercentage > 100 then game.objective.team2capturepercentage = 100 end
-
 		--win logic
 		if game.objective.team1controlpercentage >= 100 or game.objective.team2controlpercentage >= 100 then
 			--game.ispaused = true
 			game.state = "score"
+		end
+	end
+end
+
+function ai_update_loop()
+	for key,entity in pairs(ai_entities) do
+		if entity.hp > 0 then
+			ai_movement_behavior(entity)
+			ai_attack_behavior(entity)
+		else
+			if entity.isalive then
+				if entity.team == "team1" then
+					game.kills.team2 += 1
+				else
+					game.kills.team1 += 1
+				end
+				entity.isalive = false
+				temp_proj = copy(splat)
+				make_projectile(entity,temp_proj)
+			end
+		end
+	end
+end
+
+function ai_draw_loop()
+	for key,entity in pairs(ai_entities) do
+		--respawn
+		if entity.hp <= 0 then
+			entity.respawncounter += 1
+
+			if entity.respawncounter >= game.respawntime then
+				respawncounter = 0
+				team = entity.team
+				tmp = copy(all_characters[flr(rnd(#all_characters))+1])
+				tmp.team = team
+				spawn = find_spawn_point(tmp)
+				tmp.pos.x = spawn[1]
+				tmp.pos.y = spawn[2]
+				for key,projectile in pairs(tmp.primary) do
+					projectile.parent = team
+					projectile.firedelay *= game.maxfirerate - game.globalfirerate
+				end
+				for key,projectile in pairs(tmp.alternate) do
+					projectile.parent = team
+					projectile.firedelay *= game.maxfirerate - game.globalfirerate
+				end
+				add(ai_entities, tmp)
+				del(ai_entities, entity)
+			end
+		else
+			--draw
+			if entity.pos.x > cam.pos.x and entity.pos.x < cam.pos.x+128 then
+				draw_entity(entity)
+				draw_health_bar(entity)
+			end
+
+			--special
+			if entity.character == "rainhorse" and entity.shielded and entity.shields > 0 then
+				if entity.spriteflip.x then
+					line(entity.pos.x,entity.pos.y,entity.pos.x,entity.pos.y+entity.sca.y,12)
+				else
+					line(entity.pos.x+entity.sca.x,entity.pos.y,entity.pos.x+entity.sca.x,entity.pos.y+entity.sca.y,12)
+				end
+			end
+			if entity.character == "sk8rboi" then
+				for key,entity2 in pairs(all_entities) do
+					if abs(entity.pos.x - entity2.pos.x) <= 12 and abs(entity.pos.y - entity2.pos.y) <= 12 and entity2.team == entity.team and entity2 != entity then
+						entity2.hp = min(entity2.hp+0.5, entity2.maxhp)
+					end
+				end
+			end
+		end
+	end
+end
+
+function player_update_loop()
+	if player_entity.hp > 0 then
+		player_entity.shottimer -= 1
+		player_entity.alternateshottimer -= 1
+	else
+		if player_entity.isalive then
+			if player_entity.team == "team1" then
+				game.kills.team2 += 1
+			else
+				game.kills.team1 += 1
+			end
+			temp_proj = copy(splat)
+			make_projectile(player_entity,temp_proj)
+			player_entity.isalive = false
+		end
+	end
+end
+
+function player_draw_loop()
+	--draw
+	if player_entity.hp > 0 then
+		draw_entity(player_entity)
+		draw_health_bar(player_entity)
+	end
+
+	--special
+	if player_entity.character == "rainhorse" and player_entity.shielded and player_entity.shields > 0 then
+		if player_entity.spriteflip.x then
+			line(player_entity.pos.x,player_entity.pos.y,player_entity.pos.x,player_entity.pos.y+player_entity.sca.y,12)
+		else
+			line(player_entity.pos.x+player_entity.sca.x,player_entity.pos.y,player_entity.pos.x+player_entity.sca.x,player_entity.pos.y+player_entity.sca.y,12)
+		end
+	end
+	if player_entity.character == "sk8rboi" then
+		for key,val in pairs(ai_entities) do
+			if abs(player_entity.pos.x - val.pos.x) <= 12 and abs(player_entity.pos.y - val.pos.y) <= 12 and val.team == player_entity.team and val != player_entity then
+				val.hp = min(val.hp+0.5, val.maxhp)
+			end
+		end
+	end
+
+	--resets
+	if player_entity.character == "rainhorse" or player_entity.character == "robogirl" then
+		player_entity.shielded = false
+	end
+
+	--player respawn counter
+	if player_entity.isalive == false then
+		game.respawncounter += 1
+		sspr(flr(104%16)*8, flr(104/16)*8, 8, 8, cam.pos.x+56, cam.pos.y+50, 16, 16)
+		print(flr((game.respawntime-game.respawncounter)/30)+1, cam.pos.x+62, cam.pos.y+60, 7)
+		if game.respawncounter >= game.respawntime then
+			game.respawncounter = 0
+			make_player()
+		end
+	end
+
+end
+
+function projectile_update_loop()
+	for key,entity in pairs(projectiles) do
+		cleanup(entity)
+		apply_gravity(entity)
+		apply_velocity(entity)
+		projectile_anim(entity)
+		entity.age += 1
+		if entity.age >= entity.maxage then
+			if entity.explode then
+				make_projectile(entity, explosion)
+			end
+			del(projectiles, entity)
+		end
+	end
+end
+
+function projectile_draw_loop()
+	for key,entity in pairs(projectiles) do
+		if entity.pos.x > cam.pos.x and entity.pos.x < cam.pos.x+128 then
+			draw_entity(entity)
+		end
+		apply_projectile_map_collision(entity)
+	end
+end
+
+function universal_update_loop()
+	--add to all entities
+	for key,entity in pairs(all_entities) do
+		if entity.hp > 0 then
+			cleanup(entity)
+			if entity.onladder == false then
+				apply_gravity(entity)
+			end
+			apply_velocity(entity)
+			apply_drag(entity)
+			apply_entity_map_collision(entity)
+			apply_ladder_collision(entity)
+			apply_projectile_entity_collision(entity)
+			set_animation_frame(entity)
 		end
 	end
 end
@@ -687,393 +985,56 @@ end
 --------------------------------------------------
 function _init()
 	cls()
+	game.currmap = all_maps[flr(game.selectedmap%#all_maps)+1]
+	make_player()
 end
 
 function _update()
 	if game.ispaused == false then
+		all_entities = {}
+		add(all_entities, player_entity)
+		for k,v in pairs(ai_entities) do add(all_entities,v) end
 		--game objectives
-		game.currmap = all_maps[flr(game.selectedmap%#all_maps)+1]
 		assess_capture()
-
 		--ai entities
-		for key,entity in pairs(ai_entities) do
-			if entity.hp > 0 then
-				assess_hp(entity, ai_entities)
-				cleanup(entity)
-				entity.target = ai_get_target(entity)
-				ai_movement_behavior(entity)
-				ai_attack_behavior(entity)
-				if entity.onladder == false then
-					apply_gravity(entity)
-				end
-				apply_velocity(entity)
-				apply_drag(entity)
-				apply_entity_map_collision(entity)
-				apply_ladder_collision(entity)
-				apply_projectile_entity_collision(entity)
-				set_animation_frame(entity)
-			else
-				if entity.isalive then
-					if entity.team == "team1" then
-						game.kills.team2 += 1
-					else
-						game.kills.team1 += 1
-					end
-					entity.isalive = false
-					temp_proj = copy(splat)
-					make_projectile(entity,temp_proj)
-				end
-			end
-		end
-
+		ai_update_loop()
 		--player entities
-		for key,entity in pairs(player_entities) do
-			if entity.hp > 0 then
-				cleanup(entity)
-				assess_hp(entity, player_entities)
-				entity.target = ai_get_target(entity)
-				if entity.onladder == false then
-					apply_gravity(entity)
-				end
-				apply_velocity(entity)
-				apply_drag(entity)
-				apply_entity_map_collision(entity)
-				apply_ladder_collision(entity)
-				apply_projectile_entity_collision(entity)
-				set_animation_frame(entity)
-				--counters
-				entity.shottimer -= 1
-				entity.alternateshottimer -= 1
-			else
-				if entity.team == "team1" then
-					game.kills.team2 += 1
-				else
-					game.kills.team1 += 1
-				end
-				temp_proj = copy(splat)
-				make_projectile(entity,temp_proj)
-				del(player_entities, entity)
-			end
-		end
-
+		player_update_loop()
+		--universal update loop
+		universal_update_loop()
 		--projectiles
-		for key,entity in pairs(projectiles) do
-			cleanup(entity)
-			apply_gravity(entity)
-			apply_velocity(entity)
-			apply_projectile_map_collision(entity)
-			projectile_anim(entity)
-			entity.age += 1
-			if entity.age >= entity.maxage then
-				if entity.explode then
-					for i=0,1 do
-						make_projectile(entity, explosion)
-					end
-				end
-				del(projectiles, entity)
-			end
-		end
+		projectile_update_loop()
 	end
 end
 
 function _draw()
 	if game.ispaused == false then
+		--clear screen
 		cls()
-		
-		--time management
-		time += 1
-		if time > 2047 then time = 0 end
-
+		--increment time
+		time += 1 if time > 2047 then time = 0 end
 		--camera
-		if #player_entities > 0 then
-			cam.target = player_entities[1]
-		elseif #ai_entities > 0 then
-			cam.target = ai_entities[2]
-		end
 		move_camera()
-
 		--map
 		draw_map()
-
 		--ai entities
-		for key,entity in pairs(ai_entities) do
-			--respawn
-			if entity.hp <= 0 then
-				entity.respawncounter += 1
-				entity.velocity.x = 0
-				entity.velocity.y = 0
-
-				if entity.respawncounter >= game.respawntime then
-					respawncounter = 0
-					team = entity.team
-					tmp = copy(all_characters[flr(rnd(#all_characters))+1])
-					tmp.team = team
-					spawn = find_spawn_point(tmp)
-					tmp.pos.x = spawn[1]
-					tmp.pos.y = spawn[2]
-					for key,projectile in pairs(tmp.primary) do
-						projectile.parent = team
-						projectile.firedelay *= game.maxfirerate - game.globalfirerate
-					end
-					for key,projectile in pairs(tmp.alternate) do
-						projectile.parent = team
-						projectile.firedelay *= game.maxfirerate - game.globalfirerate
-					end
-					add(ai_entities, tmp)
-					del(ai_entities, entity)
-				end
-			else
-				--draw
-				if entity.pos.x > cam.pos.x and entity.pos.x < cam.pos.x+128 then
-					draw_entity(entity)
-					draw_health_bar(entity)
-				end
-
-				--special
-				if entity.character == "rainhorse" and entity.shielded and entity.shields > 0 then
-					if entity.spriteflip.x then
-						line(entity.pos.x,entity.pos.y,entity.pos.x,entity.pos.y+entity.sca.y,12)
-					else
-						line(entity.pos.x+entity.sca.x,entity.pos.y,entity.pos.x+entity.sca.x,entity.pos.y+entity.sca.y,12)
-					end
-				end
-
-				--resets
-				if entity.character == "rainhorse" or entity.character == "robogirl" then
-					--entity.shielded = false
-				end
-			end
-		end
-
+		ai_draw_loop()
 		--player entities
-		for key,entity in pairs(player_entities) do
-			--draw
-			draw_entity(entity)
-			draw_health_bar(entity)
-
-			--special
-			if entity.character == "rainhorse" and entity.shielded and entity.shields > 0 then
-				if entity.spriteflip.x then
-					line(entity.pos.x,entity.pos.y,entity.pos.x,entity.pos.y+entity.sca.y,12)
-				else
-					line(entity.pos.x+entity.sca.x,entity.pos.y,entity.pos.x+entity.sca.x,entity.pos.y+entity.sca.y,12)
-				end
-			end
-
-			--resets
-			if entity.character == "rainhorse" or entity.character == "robogirl" then
-				entity.shielded = false
-			end
-		end
-
+		player_draw_loop()
 		--projectiles
-		for key,entity in pairs(projectiles) do
-			if entity.pos.x > cam.pos.x and entity.pos.x < cam.pos.x+128 then
-				draw_entity(entity)
-			end
-		end
-
-		--player respawn counter
-		if #player_entities == 0 then
-			game.respawncounter += 1
-			sspr(flr(104%16)*8, flr(104/16)*8, 8, 8, cam.pos.x+56, cam.pos.y+50, 16, 16)
-			print(flr((game.respawntime-game.respawncounter)/30)+1, cam.pos.x+62, cam.pos.y+60, 7)
-			if game.respawncounter >= game.respawntime then
-				game.respawncounter = 0
-				make_player()
-			end
-		end
-
+		projectile_draw_loop()
 	end
 
 	--gui----------------------------------------
 	---------------------------------------------
 	if game.state == "title" then
-		rectfill(cam.pos.x+8, cam.pos.y+28, cam.pos.x+120, cam.pos.y+84, 0)
-		rect(cam.pos.x+6, cam.pos.y+26, cam.pos.x+122, cam.pos.y+86, 1)
-		rect(cam.pos.x+8, cam.pos.y+28, cam.pos.x+120, cam.pos.y+84, 12)
-
-		--logo
-		sspr(56, 48, 8, 8, cam.pos.x+54, cam.pos.y+40, 16, 16)
-		sspr(0, 48, 56, 8, cam.pos.x+15, cam.pos.y+60, 100, 12)
-
-		print("press any key", cam.pos.x+36, cam.pos.y+90, 12)
-
-		if btn(0) or btn(1) or btn(2) or btn(3) or btn(4) or btn(5) then
-			game.state = "menu"
-		end
+		draw_title_screen()
 	elseif game.state == "menu" then
-		if game.firstload then
-			time = 0
-			game.kills.team1 = 0
-			game.kills.team2 = 0
-			game.objective.team1capturepercentage = 0
-			game.objective.team2capturepercentage = 0
-			game.objective.team1controlpercentage = 0
-			game.objective.team2controlpercentage = 0
-			make_player()
-			make_ai()
-			game.firstload = false
-		end
-
-		draw_menu()
-
-		if btnp(0) then
-			if game.menuselection == 0 then
-				game.globalgamespeed -= 0.1
-			elseif game.menuselection == 1 then
-				game.globalgravity -= 0.1
-			elseif game.menuselection == 2 then
-				game.globalfirerate = max(0.1, game.globalfirerate-0.1)
-			elseif game.menuselection == 3 then
-				game.selectedmap += 1
-			elseif game.menuselection == 4 then
-				game.selectedcharacter += 1
-			end
-			sfx(0)
-		end
-		if btnp(1) then
-			if game.menuselection == 0 then
-				game.globalgamespeed += 0.1
-			elseif game.menuselection == 1 then
-				game.globalgravity += 0.1
-			elseif game.menuselection == 2 then
-				game.globalfirerate = min(game.maxfirerate, game.globalfirerate+0.1)
-			elseif game.menuselection == 3 then
-				game.selectedmap -= 1
-			elseif game.menuselection == 4 then
-				game.selectedcharacter -= 1
-			end
-			sfx(0)
-		end
-		if btnp(4) or btnp(5) then
-			game.state = "play"
-			game.firstload = true
-			sfx(1)
-		end
+		draw_main_menu_screen()
 	elseif game.state == "play" then
-		game.ispaused = false
-
-		if game.firstload then
-			game.firstload = false
-			time = 0
-			ai_entities = {}
-			player_entities = {}
-			game.kills.team1 = 0
-			game.kills.team2 = 0
-			game.objective.team1capturepercentage = 0
-			game.objective.team2capturepercentage = 0
-			game.objective.team1controlpercentage = 0
-			game.objective.team2controlpercentage = 0
-			make_player()
-			make_ai()
-		end
-
-		draw_objective_rect()
-		draw_kills()
-
-		--player feedback------------------------------------
-		-----------------------------------------------------
-		if btn(0) then
-			--left
-			for key,entity in pairs(player_entities) do
-				entity.velocity.x -= entity.speed
-				entity.spriteflip.x = true
-			end
-		end
-		if btn(1) then
-			--right
-			for key,entity in pairs(player_entities) do
-				entity.velocity.x += entity.speed
-				entity.spriteflip.x = false
-			end
-		end
-		if btn(2) then
-			--up
-			for key,entity in pairs(player_entities) do
-				if entity.canfly then
-					entity.velocity.y -= 0.5;
-				elseif entity.isjumping == false then
-					entity.velocity.y -= entity.jumpheight
-					entity.isjumping = true
-				end
-			end
-		end
-		if btn(3) then
-			--down
-			for key,entity in pairs(player_entities) do
-				if entity.isjumping == false then
-					entity.onladder = false
-					entity.isjumping = true
-				end
-			end
-		end
-		if btn(4) then
-			--one
-			for key,entity in pairs(player_entities) do
-
-				--primary fire
-				if entity.shottimer <= 0 then
-					for key,val in pairs(entity.primary) do
-						entity.shottimer = val.firedelay
-						make_projectile(entity, val)
-					end
-				end
-
-			end
-		elseif btn(5) then
-			for key,entity in pairs(player_entities) do
-
-				--alternate fire
-				if entity.alternateshottimer <= 0 then
-					for key,val in pairs(entity.alternate) do
-						entity.alternateshottimer = val.firedelay
-						make_projectile(entity, val)
-					end
-
-					if entity.character == "rainhorse" or entity.character == "robogirl" and entity.shields > 0 then
-						entity.shielded = true
-					end
-
-					if entity.character == "harvester" then
-						if entity.spriteflip.x then
-							entity.pos.x -= 64
-						else
-							entity.pos.x += 64
-						end
-					end
-				end
-			end
-		end
+		draw_play_screen()
 	elseif game.state == "score" then
-		game.ispaused = true
-		game.firstload = true
-		
-		--window
-		rectfill(cam.pos.x+8, cam.pos.y+12, cam.pos.x+120, cam.pos.y+120, 0)
-		rect(cam.pos.x+6, cam.pos.y+10, cam.pos.x+122, cam.pos.y+122, 1)
-		rect(cam.pos.x+8, cam.pos.y+12, cam.pos.x+120, cam.pos.y+120, 12)
-
-		--logo
-		sspr(0, 48, 56, 8, cam.pos.x+15, cam.pos.y+30, 100, 12)
-
-		if game.objective.team1controlpercentage > game.objective.team2controlpercentage then
-			print("win", cam.pos.x+60, cam.pos.y+50, 12)
-		else
-			print("defeat", cam.pos.x+55, cam.pos.y+50, 8)
-		end
-		
-		print("kills: ", cam.pos.x+15, cam.pos.y+70, 6)
-		print(game.kills.team1, cam.pos.x+60, cam.pos.y+70, 12)
-		print(game.kills.team2, cam.pos.x+90, cam.pos.y+70, 8)
-
-		print("control: ", cam.pos.x+15, cam.pos.y+80, 6)
-		print(flr(game.objective.team1controlpercentage).."%", cam.pos.x+60, cam.pos.y+80, 12)
-		print(flr(game.objective.team2controlpercentage).."%", cam.pos.x+90, cam.pos.y+80, 8)
-
-		print("press z+x to restart", cam.pos.x+24, cam.pos.y+110, 1)
-		if btn(4) and btn(5) then game.state = "menu" end
-
+		draw_score_screen()
 	end
 end
 
@@ -1180,7 +1141,7 @@ soldier24.primary = {}
 		maxage = 10,
 		bounce = false,
 		damage = 17,
-		firedelay = 7.5,
+		firedelay = 6,
 		velocity = {
 			x = 6,
 			y = 0,
@@ -1254,11 +1215,11 @@ filthmouse.alternate = {}
 		sprite = 36,
 		sfx = 999,
 		mass = 2,
-		maxage = 25,
+		maxage = 20,
 		bounce = true,
 		damage = 120,
 		firedelay = 50,
-		velocity = {x = 0.5,y = 0},
+		velocity = {x = 2,y = -1},
 		sca = {x = 6,y = 2},
 		pixeloffset = {x = 0,y = 3},
 		explode = true
