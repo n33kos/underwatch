@@ -1,4 +1,11 @@
 # CHANGELOG
+version 0.14
+- Balanced Robogirl's health and armor values
+- Added ability to open menu while respawning
+- Reworked Zinra Map
+- Reworked Cloud City Map
+- Adjusted flying character flight velocity
+
 version 0.13
 - Optimized to reduce tokens
 - Improved projectile physics
