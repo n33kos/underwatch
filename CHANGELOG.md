@@ -1,9 +1,13 @@
 # CHANGELOG
-version 0.15
+version 1.0
 - Improved AI target finding
+- Improved AI Jump and move logic
 - Adjusted Zinra map to prevent AI bunching
 - limited main menu settings to acceptable values
-- Added map specific song functionality
+- Added music management functionality
+- Composed background and title music
+- Implemented sound effects
+- Completed Cloud City Map
 
 version 0.14
 - Balanced Robogirl's health and armor values
